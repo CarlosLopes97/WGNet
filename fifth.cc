@@ -96,13 +96,11 @@ NS_LOG_COMPONENT_DEFINE ("FifthScriptExample");
 
 int countTime = 0;
 int countSize = 0;
-int nPackets = 1;
+int nPackets = 0;
 bool sendSize=false;
 bool sendTime=false;
 double size_Packets = 0;
 double time_Packets = 0;
-double timeStartSimulation = 0;
-double timeStopSimulation = 1000;
 
 // Função de leitura dos dados do trace
 void openTrace(int sizeFile, bool sendSize, bool sendTime, int countSize, int countTime){
@@ -163,9 +161,7 @@ void openTrace(int sizeFile, bool sendSize, bool sendTime, int countSize, int co
           // std::cout <<"Time Count: " << countTime <<std::endl;
           // std::cout <<"Time Packet File: " << t_Packets[countTime][0] <<std::endl;
       }
-      if(countTime != nPackets){
-          timeStopSimulation++;
-      }
+
   // }
     
   
@@ -305,10 +301,10 @@ MyApp::ScheduleTx (void)
 
       openTrace(nPackets, sendSize, sendTime, countSize, countTime);
       countTime++;
-      Time tNext = (Seconds (time_Packets));
+      Time tNext = (MilliSeconds (time_Packets));
       // Time tNext (Seconds (m_packetSize * 8 / static_cast<double> (m_dataRate.GetBitRate ())));
       
-      std::cout<< "Time Simulation: "<< tNext <<std::endl;
+      std::cout<< "Time Simulation: "<< time_Packets <<std::endl;
       
       m_sendEvent = Simulator::Schedule (tNext, &MyApp::SendPacket, this);
       
@@ -333,12 +329,15 @@ RxDrop (Ptr<PcapFileWrapper> file, Ptr< const Packet> packet)
   int
   main (int argc, char *argv[])
   {
+  
+  double timeStartSimulation = 0;
+  double timeStopSimulation = 10;
 
-
-    CommandLine cmd;
-    cmd.AddValue("nPackets", "Number of packets to echo", nPackets);
-    cmd.Parse (argc, argv);
-
+  CommandLine cmd;
+  cmd.AddValue("nPackets", "Number of packets to echo", nPackets);
+  cmd.AddValue("timeStopSimulation", "Tempo final da simulação", timeStopSimulation);
+  cmd.Parse (argc, argv);
+  // timeStopSimulation;
   // Função de abrir traces
   sendTime = false;
   sendSize = false;
@@ -380,7 +379,8 @@ mobilitywifiAll.Install (nodes);
   PacketSinkHelper packetSinkHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), sinkPort));
   ApplicationContainer sinkApps = packetSinkHelper.Install (nodes.Get (1));
   sinkApps.Start (Seconds (timeStartSimulation));
-  sinkApps.Stop (Seconds (timeStopSimulation));
+  sinkApps.Stop (Seconds(timeStopSimulation));
+  
 
   Ptr<Socket> ns3TcpSocket = Socket::CreateSocket (nodes.Get (0), TcpSocketFactory::GetTypeId ());
   ns3TcpSocket->TraceConnectWithoutContext ("CongestionWindow", MakeCallback (&CwndChange));
@@ -393,6 +393,7 @@ mobilitywifiAll.Install (nodes);
   nodes.Get (0)->AddApplication (app);
   app->SetStartTime (Seconds (timeStartSimulation));
   app->SetStopTime (Seconds (timeStopSimulation));
+  
 
   PcapHelper pcapHelper;
   Ptr<PcapFileWrapper> file = pcapHelper.CreateFile ("fifth.pcap", std::ios::out, PcapHelper::DLT_PPP);
@@ -451,8 +452,8 @@ mobilitywifiAll.Install (nodes);
         anim.EnableWifiMacCounters (Seconds (0), Seconds (100)); //Optional
         anim.EnableWifiPhyCounters (Seconds (0), Seconds (100)); //Optional
 
-  
-  Simulator::Stop (Seconds (100));
+
+  Simulator::Stop (Seconds(timeStopSimulation));
   Simulator::Run ();
   
 //#####################Imprimir resultados da simulação
