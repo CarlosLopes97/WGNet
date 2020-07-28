@@ -2067,4 +2067,26 @@ Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
 Node: 1, Time: +465.0s, Local time: +465.0s, Ipv4GlobalRouting table
 
 " />
+<rt t="470" id="0" info="Node: 0, Time: +470.0s, Local time: +470.0s, Ipv4ListRouting table
+  Priority: 0 Protocol: ns3::Ipv4StaticRouting
+Node: 0, Time: +470.0s, Local time: +470.0s, Ipv4StaticRouting table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+127.0.0.0       0.0.0.0         255.0.0.0       U     0      -      -   0
+10.1.1.0        0.0.0.0         255.255.255.252 U     0      -      -   1
+
+  Priority: -10 Protocol: ns3::Ipv4GlobalRouting
+Node: 0, Time: +470.0s, Local time: +470.0s, Ipv4GlobalRouting table
+
+" />
+<rt t="470" id="1" info="Node: 1, Time: +470.0s, Local time: +470.0s, Ipv4ListRouting table
+  Priority: 0 Protocol: ns3::Ipv4StaticRouting
+Node: 1, Time: +470.0s, Local time: +470.0s, Ipv4StaticRouting table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+127.0.0.0       0.0.0.0         255.0.0.0       U     0      -      -   0
+10.1.1.0        0.0.0.0         255.255.255.252 U     0      -      -   1
+
+  Priority: -10 Protocol: ns3::Ipv4GlobalRouting
+Node: 1, Time: +470.0s, Local time: +470.0s, Ipv4GlobalRouting table
+
+" />
 </anim>
