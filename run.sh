@@ -1,12 +1,24 @@
-#!/bin/sh
-sizeFile=$(wc -l < scratch/Times.txt)
+#!/usr/bin/env bash
 
-lastTime=$(tail -n 1 scratch/Times.txt )
+file="fifth"
+echo File ${file}.cc
 
-# lastTime=${lastLine%}
+# Copy file to scratch
+sudo cp ${file}.cc ../../repos/ns-3-allinone/ns-3.30/scratch/
 
-echo $sizeFile
-echo $lastTime
+# Set permissions to file in scratch
+sudo chmod 777 ../../repos/ns-3-allinone/ns-3.30/scratch/${file}.cc
 
-./waf --run "scratch/fifth --nPackets=$sizeFile --timeStopSimulation=$lastTime+1"
-# --timeStopSimulation=$lastTime
+sizeFile=$(wc -l < Parameters/Times.txt)
+lastTime=$(tail -n 1 Parameters/Times.txt)
+
+echo Size File $sizeFile
+echo Last Time $lastTime
+# scriptdir="$(../../repos/ns-3-allinone/ns-3.30 "$0")"
+
+# cd desired/directory
+cd "../../repos/ns-3-allinone/ns-3.30/" 
+./waf --run "scratch/${file} --nPackets=$sizeFile --timeStopSimulation=$lastTime"
+
+
+sudo rm scratch/$file.cc
