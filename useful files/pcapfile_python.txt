@@ -1,0 +1,81 @@
+READ TRACES WITH PCAPFILE LIB:
+>>>
+# Basic example to open trace .pcap
+from pcapfile import savefile
+# Get a source file
+testcap = open('../../repos/ns-3-allinone/ns-3.30/trace1.pcap', 'rb')
+# Save data in variable
+capfile = savefile.load_savefile(testcap, verbose=True)
+
+# Show data of file
+print (capfile)
+
+# Show the packet data
+pkt = capfile.packets[0]
+pkt.raw()
+
+pkt.timestamp
+
+R:
+[+] attempting to load ../../repos/ns-3-allinone/ns-3.30/trace1.pcap
+[+] found valid header
+[+] loaded 1226 packets
+[+] finished loading savefile.
+b'little'-endian capture file version 2.4
+microsecond time resolution
+snapshot length: 262144
+linklayer type: LINKTYPE_ETHERNET
+number of packets: 1226
+
+1595440758
+---
+>>>
+# Example with various interface type 
+from pcapfile.protocols.linklayer import ethernet
+from pcapfile.protocols.network import ip
+import binascii
+eth_frame = ethernet.Ethernet(capfile.packets[0].raw())
+print (eth_frame)
+ip_packet = ip.IP(binascii.unhexlify(eth_frame.payload))
+print (ip_packet)
+print(eth_frame.payload)
+R:
+ethernet from b'64:32:a8:7a:04:86' to b'f8:4f:ad:1c:cc:48' type IPv4
+ipv4 packet from b'192.168.1.7' to b'192.168.1.5' carrying 142 bytes
+b'450000a232464000400684b3c0a80107c0a80105edcc1f49dd73e932465c3de7801801f51a5e00000101080ae290f3b60008ab551703030069253106e884c8718672a50cbf016f7044da0abdb52682c335f2f2071dbefc606724cabd87f298090d1ad1b26f585a7330de3d72f74a83845b1285a886d9b27db990c09fa8ff5989019c4dc7ffe922ec70eb6481c7ddc9b713bdc976e255e0ce23f48ffbdc3b98d95744'
+---
+>>>
+time = []
+import pandas as pd
+
+for packet in capfile.packets:
+    # print("Packet timestamp ", packet.timestamp)
+    # print("Packet ", packet.packet, "\n")
+
+    # show header fields
+    
+    # print("Magic number", packet.header.contents.magic)             # print("Major version Number", packet.header.contents.major)    # print("Minor version number", packet.header.contents.minor)     # print("Timezone offset", packet.header.contents.tz_off)         # print("Timestamp accuracy", packet.header.contents.ts_acc)      # print("Snapshot lenght", packet.header.contents.snaplen)        # print("Link layer header type",packet.header.contents.ll_type)        
+    
+    # print("Byte order specifier", packet.header.contents.byteorder)      
+    
+    # print("Nanosecond resolution",packet.header.contents.ns_resolution)  
+    
+    print("\nBytes ",packet.packet_len)  
+    
+    print("Time Stamp ",packet.timestamp)  
+ 
+    # from datetime import datetime
+    # timestamp = datetime.fromtimestamp(packet.timestamp)
+    # timestamp = timestamp.strftime('%Y-%m-%d %H:%M:%S,%f')
+    # dt_obj = datetime.strptime(timestamp,
+    #                        '%Y-%m-%d %H:%M:%S,%f')
+    # millisec = dt_obj.timestamp() * 1000
+
+    
+    # show entire packet
+    # print("Packet raw", packet.raw(),"\n\n")
+
+R:
+
+Bytes 176
+Time 1595440929

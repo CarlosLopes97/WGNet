@@ -1,0 +1,24 @@
+# FILTER DATA BY .XML FILES OF ANIMATOR OF NS3
+# ifile = open('lab2 files/test_lab2_animation.xml','r')
+# ofileTCP = open('lab2 files/test_output_TCP.xml','w')
+# ofileUDP = open('lab2 files/test_output_UDP.xml','w')
+
+# for line in ifile.readlines():
+
+#     if('ns3::UdpHeader' in line):
+#         ofileUDP.write(line.replace('size=', '" size="'))
+#     # if('ns3::TcpHeader' in line):
+#     #     ofileTCP.write(line.replace('Payload Fragment ', 'Payload" Fragment="'))
+#     if('ns3::TcpHeader' in line):
+#         ofileTCP.write(line.replace('length: ', '" length="'))
+    
+#     if('<anim ver="netanim-3.108" filetype="animation" >' in line):
+#         ofileUDP.write('<anim ver="netanim-3.108" filetype="animation" >\n')
+#         ofileTCP.write('<anim ver="netanim-3.108" filetype="animation" >\n')
+#     if('</anim>' in line):
+#         ofileUDP.write('</anim>\n')
+#         ofileTCP.write('</anim>\n')
+        
+# ifile.close()
+# ofileTCP.close()
+# ofileUDP.close()
