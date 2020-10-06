@@ -1,0 +1,24 @@
+<anim ver="netanim-3.108" filetype="routing" >
+<rt t="0" id="0" info="Node: 0, Time: +0.0s, Local time: +0.0s, Ipv4ListRouting table
+  Priority: 0 Protocol: ns3::Ipv4StaticRouting
+Node: 0, Time: +0.0s, Local time: +0.0s, Ipv4StaticRouting table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+127.0.0.0       0.0.0.0         255.0.0.0       U     0      -      -   0
+10.1.1.0        0.0.0.0         255.255.255.252 U     0      -      -   1
+
+  Priority: -10 Protocol: ns3::Ipv4GlobalRouting
+Node: 0, Time: +0.0s, Local time: +0.0s, Ipv4GlobalRouting table
+
+" />
+<rt t="0" id="1" info="Node: 1, Time: +0.0s, Local time: +0.0s, Ipv4ListRouting table
+  Priority: 0 Protocol: ns3::Ipv4StaticRouting
+Node: 1, Time: +0.0s, Local time: +0.0s, Ipv4StaticRouting table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+127.0.0.0       0.0.0.0         255.0.0.0       U     0      -      -   0
+10.1.1.0        0.0.0.0         255.255.255.252 U     0      -      -   1
+
+  Priority: -10 Protocol: ns3::Ipv4GlobalRouting
+Node: 1, Time: +0.0s, Local time: +0.0s, Ipv4GlobalRouting table
+
+" />
+</anim>

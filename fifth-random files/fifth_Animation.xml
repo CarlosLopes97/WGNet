@@ -1,0 +1,85 @@
+<anim ver="netanim-3.108" filetype="animation" >
+<node id="0" sysId="0" locX="1.750104535" locY="8.899318241" />
+<node id="1" sysId="0" locX="5.574298589" locY="3.796862399" />
+<nu p="c" t="0" id="0" r="255" g="0" b="0" />
+<nu p="c" t="0" id="1" r="255" g="0" b="0" />
+<link fromId="0" toId="1" fd="10.1.1.1~00:00:00:00:00:01" td="10.1.1.2~00:00:00:00:00:02" ld="" />
+<nonp2plinkproperties id="0" ipAddress="127.0.0.1~00:00:00:00:00:00" channelType="Unknown channel" />
+<nonp2plinkproperties id="1" ipAddress="127.0.0.1~00:00:00:00:00:00" channelType="Unknown channel" />
+<ip n="0" >
+<address >10.1.1.1</address>
+
+<address >127.0.0.1</address>
+
+</ip>
+<ip n="0" >
+<address >10.1.1.1</address>
+
+<address >127.0.0.1</address>
+
+</ip>
+<ip n="1" >
+<address >10.1.1.2</address>
+
+<address >127.0.0.1</address>
+
+</ip>
+<ip n="1" >
+<address >10.1.1.2</address>
+
+<address >127.0.0.1</address>
+
+</ip>
+<ipv6 n="0" >
+<address >::1</address>
+
+</ipv6>
+<ipv6 n="1" >
+<address >::1</address>
+
+</ipv6>
+<nu p="s" t="0" id="0" w="1" h="1" />
+<nu p="s" t="0" id="1" w="1" h="1" />
+<ncs ncId="0" n="RemainingEnergy" t="DOUBLE" />
+<nu p="d" t="0" id="0" descr="Node" />
+<nu p="c" t="0" id="0" r="255" g="0" b="0" />
+<nu p="d" t="0" id="1" descr="Node" />
+<nu p="c" t="0" id="1" r="255" g="0" b="0" />
+<ncs ncId="1" n="WifiMac Tx" t="DOUBLE" />
+<ncs ncId="2" n="WifiMac TxDrop" t="DOUBLE" />
+<ncs ncId="3" n="WifiMac Rx" t="DOUBLE" />
+<ncs ncId="4" n="WifiMac RxDrop" t="DOUBLE" />
+<nc c="1" i="0" t="0" v="0" />
+<nc c="2" i="0" t="0" v="0" />
+<nc c="3" i="0" t="0" v="0" />
+<nc c="4" i="0" t="0" v="0" />
+<nc c="1" i="1" t="0" v="0" />
+<nc c="2" i="1" t="0" v="0" />
+<nc c="3" i="1" t="0" v="0" />
+<nc c="4" i="1" t="0" v="0" />
+<ncs ncId="5" n="WifiPhy TxDrop" t="DOUBLE" />
+<ncs ncId="6" n="WifiPhy RxDrop" t="DOUBLE" />
+<nc c="5" i="0" t="0" v="0" />
+<nc c="6" i="0" t="0" v="0" />
+<nc c="5" i="1" t="0" v="0" />
+<nc c="6" i="1" t="0" v="0" />
+<nc c="1" i="0" t="0" v="0" />
+<nc c="2" i="0" t="0" v="0" />
+<nc c="3" i="0" t="0" v="0" />
+<nc c="4" i="0" t="0" v="0" />
+<nc c="1" i="1" t="0" v="0" />
+<nc c="2" i="1" t="0" v="0" />
+<nc c="3" i="1" t="0" v="0" />
+<nc c="4" i="1" t="0" v="0" />
+<nc c="5" i="0" t="0" v="0" />
+<nc c="6" i="0" t="0" v="0" />
+<nc c="5" i="1" t="0" v="0" />
+<nc c="6" i="1" t="0" v="0" />
+<p fId="0" fbTx="0" lbTx="9.28e-05" meta-info="ns3::PppHeader (Point-to-Point Protocol: IP (0x0021)) ns3::Ipv4Header (tos 0x0 DSCP Default ECN Not-ECT ttl 64 id 0 protocol 6 offset (bytes) 0 flags [none] length: 56 10.1.1.1 &gt; 10.1.1.2) ns3::TcpHeader (49153 &gt; 8080 [SYN] Seq=0 Ack=0 Win=65535 ns3::TcpOptionTS(0;0) ns3::TcpOptionWinScale(2) ns3::TcpOptionSackPermitted([sack_perm]) ns3::TcpOptionEnd(EOL))" tId="1" fbRx="0.002" lbRx="0.0020928" />
+<p fId="1" fbTx="0.0020928" lbTx="0.0021856" meta-info="ns3::PppHeader (Point-to-Point Protocol: IP (0x0021)) ns3::Ipv4Header (tos 0x0 DSCP Default ECN Not-ECT ttl 64 id 0 protocol 6 offset (bytes) 0 flags [none] length: 56 10.1.1.2 &gt; 10.1.1.1) ns3::TcpHeader (8080 &gt; 49153 [SYN|ACK] Seq=0 Ack=1 Win=65535 ns3::TcpOptionTS(2;0) ns3::TcpOptionWinScale(2) ns3::TcpOptionSackPermitted([sack_perm]) ns3::TcpOptionEnd(EOL))" tId="0" fbRx="0.0040928" lbRx="0.0041856" />
+<p fId="0" fbTx="0.0041856" lbTx="0.004271999" meta-info="ns3::PppHeader (Point-to-Point Protocol: IP (0x0021)) ns3::Ipv4Header (tos 0x0 DSCP Default ECN Not-ECT ttl 64 id 1 protocol 6 offset (bytes) 0 flags [none] length: 52 10.1.1.1 &gt; 10.1.1.2) ns3::TcpHeader (49153 &gt; 8080 [ACK] Seq=1 Ack=1 Win=32768 ns3::TcpOptionTS(4;2) ns3::TcpOptionEnd(EOL))" tId="1" fbRx="0.0061856" lbRx="0.006271999" />
+<p fId="0" fbTx="0.004271999" lbTx="0.005215998" meta-info="ns3::PppHeader (Point-to-Point Protocol: IP (0x0021)) ns3::Ipv4Header (tos 0x0 DSCP Default ECN Not-ECT ttl 64 id 2 protocol 6 offset (bytes) 0 flags [none] length: 588 10.1.1.1 &gt; 10.1.1.2) ns3::TcpHeader (49153 &gt; 8080 [ACK] Seq=1 Ack=1 Win=32768 ns3::TcpOptionTS(4;2) ns3::TcpOptionEnd(EOL)) Payload Fragment [0:536]" tId="1" fbRx="0.006271999" lbRx="0.007215998" />
+<p fId="1" fbTx="0.007215998" lbTx="0.007302397" meta-info="ns3::PppHeader (Point-to-Point Protocol: IP (0x0021)) ns3::Ipv4Header (tos 0x0 DSCP Default ECN Not-ECT ttl 64 id 1 protocol 6 offset (bytes) 0 flags [none] length: 52 10.1.1.2 &gt; 10.1.1.1) ns3::TcpHeader (8080 &gt; 49153 [ACK] Seq=1 Ack=537 Win=32768 ns3::TcpOptionTS(7;4) ns3::TcpOptionEnd(EOL))" tId="0" fbRx="0.009215998" lbRx="0.009302397" />
+<p fId="0" fbTx="0.009302397" lbTx="0.010014396" meta-info="ns3::PppHeader (Point-to-Point Protocol: IP (0x0021)) ns3::Ipv4Header (tos 0x0 DSCP Default ECN Not-ECT ttl 64 id 3 protocol 6 offset (bytes) 0 flags [none] length: 443 10.1.1.1 &gt; 10.1.1.2) ns3::TcpHeader (49153 &gt; 8080 [ACK] Seq=537 Ack=1 Win=32768 ns3::TcpOptionTS(9;7) ns3::TcpOptionEnd(EOL)) Payload Fragment [536:927]" tId="1" fbRx="0.011302397" lbRx="0.012014396" />
+<p fId="1" fbTx="0.212014396" lbTx="0.212100795" meta-info="ns3::PppHeader (Point-to-Point Protocol: IP (0x0021)) ns3::Ipv4Header (tos 0x0 DSCP Default ECN Not-ECT ttl 64 id 2 protocol 6 offset (bytes) 0 flags [none] length: 52 10.1.1.2 &gt; 10.1.1.1) ns3::TcpHeader (8080 &gt; 49153 [ACK] Seq=1 Ack=928 Win=32768 ns3::TcpOptionTS(212;9) ns3::TcpOptionEnd(EOL))" tId="0" fbRx="0.214014396" lbRx="0.214100795" />
+</anim>
