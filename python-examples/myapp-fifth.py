@@ -960,8 +960,8 @@ def compare():
     
     # Métodos de comparação dos traces 
     # Opções: "qq_e_pp", "Graphical" ou "KS"
-
-    compare = "qq_e_pp"
+    compare = ""
+    # compare = "qq_e_pp"
     if compare == "qq_e_pp":
         #
         # qq and pp plots
@@ -1234,7 +1234,7 @@ def compare():
         plt.tight_layout(pad=4)
         plt.show()
     
-    compare = "Graphical"
+    # compare = "Graphical"
     if compare == "Graphical":
 
         #
@@ -1346,14 +1346,15 @@ def compare():
 
         # Adicionando valores do trace
         Ft = t_size
-        for i in range (len(Ft)):
-            Ft[i] = Ft[i]/max(Ft)
+        # for i in range (len(Ft)):
+        #     Ft[i] = Ft[i]/np.mean(Ft)
         
         # Adocionando valores obtidos do NS3
         t_Fe = size_ns3
 
-        print ("MAX Ft: ", max(Ft))
-        print ("MAX Fe: ", max(t_Fe))
+        print ("MAX SIZE Ft: ", max(Ft))
+        print ("MAX SIZE Fe: ", max(t_Fe))
+
         # Ordenando valores 
         t_Fe.sort()
         Ft.sort()
@@ -1386,7 +1387,7 @@ def compare():
         
         # Plotando resultados do teste KS
         plt.plot(t_Fe, Fe, 'o', label='Real Trace')
-        plt.plot(t_Fe, Ft, 'o', label='Syntatic Trace')
+        plt.plot(Ft, Fe, 'o', label='Syntatic Trace')
         
         # Definindo titulo
         plt.title("KS test of Real Trace and Syntatic Trace" + ' ('+parameter+')')
@@ -1401,12 +1402,12 @@ def compare():
 
         # Adicionando valores do trace
         Ft = t_time
-        for i in range (len(Ft)):
-            Ft[i] = Ft[i]/max(Ft)   
+        # for i in range (len(Ft)):
+        #     Ft[i] = Ft[i]/max(Ft)   
         # Adocionando valores obtidos do NS3
         t_Fe = time_ns3
-        print ("MAX Ft: ", max(Ft))
-        print ("MAX Fe: ", max(t_Fe))
+        print ("MAX TIME Ft: ", max(Ft))
+        print ("MAX TIME Fe: ", max(t_Fe))
         # Ordenando valores 
         t_Fe.sort()
         Ft.sort()
@@ -1439,7 +1440,7 @@ def compare():
         
         # Plotando resultados do teste KS
         plt.plot(t_Fe, Fe, 'o', label='Real Trace')
-        plt.plot(t_Fe, Ft, 'o', label='Syntatic Trace')
+        plt.plot(Ft, Fe, 'o', label='Syntatic Trace')
         
         # Definindo titulo
         plt.title("KS test of Real Trace and Syntatic Trace" + ' ('+parameter+')')
@@ -1470,7 +1471,7 @@ def main(argv):
     # dataRate = "1Mbps"
 
     # Habilita todas as notificações no NS3
-    ns3.LogComponentEnableAll(ns3.LOG_INFO)
+    # ns3.LogComponentEnableAll(ns3.LOG_INFO)
 
     # Criando container de nós 
     nodes = ns3.NodeContainer()

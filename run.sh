@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-file="myapp-fifth.py"
+file="myapp-simple-ht-hidden-stations.py"
+# file="myapp-fifth.py"
 
 # file="fifth-random"
 
@@ -15,10 +16,10 @@ then
     echo File ${file}.cc
 
     # Copy file to scratch
-    sudo cp ../../scratch/${file}.cc ../../../../repos/ns-3-allinone/ns-3.30/scratch/
+    sudo cp ../scratch/${file}.cc ../repos/ns-3-allinone/ns-3.30/scratch/
 
     # Set permissions to file in scratch
-    sudo chmod 777 ../../../../repos/ns-3-allinone/ns-3.30/scratch/${file}.cc
+    sudo chmod 777 ../repos/ns-3-allinone/ns-3.30/scratch/${file}.cc
     
 fi
 if [[ $lgp = "python" ]]
@@ -26,17 +27,17 @@ then
     echo File ${file}
 
     # Copy file to scratch
-    sudo cp ns-3-python-examples/${file} ../../../../repos/ns-3-allinone/ns-3.30/scratch/
+    sudo cp python-examples/${file} ../repos/ns-3-allinone/ns-3.30/scratch/
 
     # Set permissions to file in scratch
-    sudo chmod 777 ../../../../repos/ns-3-allinone/ns-3.30/scratch/${file}
+    sudo chmod 777 ../repos/ns-3-allinone/ns-3.30/scratch/${file}
 fi
 
 
 if [[ $cmd = "true" ]]
 then
     # cd desired/directory
-    cd "../../../../repos/ns-3-allinone/ns-3.30/" 
+    cd "../repos/ns-3-allinone/ns-3.30/" 
     sizeFile=$(wc -l < scratch/time.txt)
     lastTime=$(tail -n 1 scratch/time.txt)
 
@@ -58,13 +59,13 @@ then
     if [[ $lgp = "c++" ]] 
     then
         # cd desired/directory
-        cd "../../../../repos/ns-3-allinone/ns-3.30/" 
+        cd "../repos/ns-3-allinone/ns-3.30/" 
         ./waf --run "scratch/${file}"
     fi
     if [[ $lgp = "python" ]] 
     then
         # cd desired/directory
-        cd "../../../../repos/ns-3-allinone/ns-3.30/" 
+        cd "../repos/ns-3-allinone/ns-3.30/" 
         ./waf --pyrun "scratch/${file}"
     fi
 fi
