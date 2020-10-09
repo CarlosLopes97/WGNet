@@ -84,7 +84,7 @@ def main (argv):
   	ns.core.Config.SetDefault ("ns3::RangePropagationLossModel::MaxRange", ns.core.DoubleValue (5))
 
 	wifiStaNodes = ns.network.NodeContainer ()
-	wifiStaNodes.Create (2)
+	staDevices.Create (2)
 	wifiApNode = ns.network.NodeContainer ()
 	wifiApNode.Create (1)
 	
