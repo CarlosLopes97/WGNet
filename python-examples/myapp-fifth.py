@@ -78,7 +78,7 @@ tr_RG = "tcdf"
 aux_global_time = 0
 
 # Variável que auxilia se os arquivos de trace estão prontos para serem lidos
-tr_reader = True
+# tr_reader = True
 
 # Define o parametro de rede utilizado nas funções
 parameter = ""
@@ -932,18 +932,19 @@ def print_stats(os, st):
         print ("  Packets dropped by reason ", reason ,": ", drops)
     # for reason, drops in enumerate(st.bytesDropped):
         # print "Bytes dropped by reason %i: %i" % (reason, drops)
-# Função de leitura dos arquivos .pcap através do termshark
-def read_pcap():
-    # Lendo arquivo .pcap
-    # Tornando arquivo editável e legível
-    os.system("chmod 777 myapp-py-0-0.pcap")
-    # Atribuindo valor do tamanho do pacote em um arquivo .txt 
-    os.system("termshark -r myapp-py-0-0.pcap -T fields -E separator=/t  -e ip.len > scratch/size_ns3.txt")
-    # Atribuindo valor do tempo de envio cada pacote em um arquivo .txt
-    os.system("termshark -r myapp-py-0-0.pcap -T fields -E separator=/t -e frame.time_delta_displayed > scratch/time_ns3.txt")
-    # Tornando arquivos editáveis e legíveis
-    os.system("chmod 777 scratch/size_ns3.txt")
-    os.system("chmod 777 scratch/time_ns3.txt")
+
+# # Função de leitura dos arquivos .pcap através do termshark
+# def read_pcap():
+#     # Lendo arquivo .pcap
+#     # Tornando arquivo editável e legível
+#     os.system("chmod 777 myapp-py-0-0.pcap")
+#     # Atribuindo valor do tamanho do pacote em um arquivo .txt 
+#     os.system("termshark -r myapp-py-0-0.pcap -T fields -E separator=/t  -e ip.len > scratch/size_ns3.txt")
+#     # Atribuindo valor do tempo de envio cada pacote em um arquivo .txt
+#     os.system("termshark -r myapp-py-0-0.pcap -T fields -E separator=/t -e frame.time_delta_displayed > scratch/time_ns3.txt")
+#     # Tornando arquivos editáveis e legíveis
+#     os.system("chmod 777 scratch/size_ns3.txt")
+#     os.system("chmod 777 scratch/time_ns3.txt")
 
 # Função de comparação dos resultados obtidos com o NS3 com os dados dos traces
 # Esta função é utilizada apenas quando o método de geração variáveis aleatórias selecionado é por "Trace"
@@ -1451,8 +1452,8 @@ def compare():
 def main(argv):
     global tr_reader
     # Função para leitura de arquivos .pcap
-    if tr_reader == False:
-        read_pcap()
+    # if tr_reader == False:
+    #     read_pcap()
     
     # Obtendo informações por linha de comando
     cmd = ns.core.CommandLine ()
