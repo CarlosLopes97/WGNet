@@ -33,11 +33,23 @@ then
     sudo chmod 777 ../repos/ns-3-allinone/ns-3.30/scratch/${file}
 fi
 
+    # Lendo arquivo .pcap
+    cd "../"
+    sudo cp WGNet/trace-files/trace1.pcap repos/ns-3-allinone/ns-3.30/
+    # Tornando arquivo editável e legível
+    sudo chmod 777 WGNet/trace-files/trace1.pcap
+    # Atribuindo valor do tamanho do pacote em um arquivo .txt 
+    sudo termshark -r WGNet/trace-files/trace1.pcap -T fields -E separator=/t  -e ip.len > repos/ns-3-allinone/ns-3.30/scratch/size.txt
+    # Atribuindo valor do tempo de envio cada pacote em um arquivo .txt
+    sudo termshark -r WGNet/trace-files/trace1.pcap -T fields -E separator=/t -e frame.time_delta_displayed > repos/ns-3-allinone/ns-3.30/scratch/time.txt
+    # Tornando arquivos editáveis e legíveis
+    sudo chmod 777 repos/ns-3-allinone/ns-3.30/scratch/size_ns3.txt
+    sudo chmod 777 repos/ns-3-allinone/ns-3.30/scratch/time_ns3.txt
 
 if [[ $cmd = "true" ]]
 then
     # cd desired/directory
-    cd "../repos/ns-3-allinone/ns-3.30/" 
+    cd "repos/ns-3-allinone/ns-3.30/" 
     sizeFile=$(wc -l < scratch/time.txt)
     lastTime=$(tail -n 1 scratch/time.txt)
 
