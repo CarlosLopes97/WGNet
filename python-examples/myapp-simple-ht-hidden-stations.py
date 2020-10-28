@@ -26,6 +26,7 @@ import ns.network
 import ns.wifi
 import ns.point_to_point
 import ns.mobility
+# import ns.propagation
 import ns3 
 
 import pandas as pd
@@ -45,6 +46,7 @@ from scipy.interpolate import interp1d
 from scipy.stats.distributions import chi2
 import random
 
+import xml.etree.ElementTree as etree
 # Desligando avisos
 import warnings
 warnings.filterwarnings("ignore")
@@ -52,7 +54,7 @@ warnings.filterwarnings("ignore")
 # Opções de geração por "Trace" ou "PD"(Probability Distribution)
 mt_RG = "Trace"
 # Opções de geração de números aleatórios por "tcdf" ou "ecdf" 
-tr_RG = "ecdf"
+tr_RG = "tcdf"
 
 # Definindo variáveis globais
 
@@ -84,7 +86,7 @@ scale_size = 0
 first_tcdf_time = 0
 first_tcdf_size = 0
 
-# Variável de auxilio de parada da função read_trace
+# Variável de auxilio de parada da função read_txt
 first_trace_time = 0
 first_trace_size = 0
 
@@ -92,9 +94,109 @@ first_trace_size = 0
 size_ns3 = []
 time_ns3 = []
 
+# Definindo se o trace é ".txt" ou "xml"
+reader = "txt"
+
+size_xml = 0
+stop_xml = 0
+# Função de leitura dos arquivos xml
+def read_xml(parameter):
+    global size_xml
+    global stop_xml
+    ifile = open('scratch/results-http-docker.pdml','r')
+
+    print(ifile)
+
+    columns = ["length", "time"]
+    df = pd.DataFrame(columns = columns)
+
+    data0 = []
+    data1 = []
+   
+    for line in ifile.readlines(): 
+        if ("httpSample" in line and "</httpSample>" not in line):
+            data0.append(line)
+        if ("httpSample" in line and "</httpSample>" not in line):
+            data1.append(line)
+
+    ifile.close()
+    # Save parameters in DataFrames and Export to .txt
+    df = pd.DataFrame(list(zip(data0, data1)), columns=['length', 'time'])
+
+
+    df['length'] = df['length'].str.split('by="').str[-1]
+    df['time'] = df['time'].str.split('ts="').str[-1]
+
+    df['length'] = df['length'].str.split('"').str[0]
+    df['time'] = df['time'].str.split('"').str[0]
+
+    df["length"] = pd.to_numeric(df["length"],errors='coerce')
+    df["time"] = pd.to_numeric(df["time"],errors='coerce')
+    
+    print("DF: ", df)
+
+
+
+    size_xml = len(df["time"])
+
+    stop_xml = df["time"]
+    print("STOP: ", type(stop_xml))
+    stop_xml = stop_xml[len(stop_xml)-1]
+
+    if parameter == "Size":
+        # Chamando variáveis globais
+        global t_size
+        global first_trace_size
+
+        # Abrindo arquivos .txt
+        t_size = np.array(df['length'])
+        # print("Trace Size: ", t_size)
+
+        # Plot histograma de t_size:
+        plt.hist(t_size)
+        plt.title("Histogram of trace ("+parameter+")")
+        plt.show()
+
+        # Com ajuda da lib Pandas podemos encontrar algumas estatísticas importantes.
+        # y_size_df = pd.DataFrame(y_size, columns=['Size'])
+        # y_size_df.describe()
+
+        # Definindo que o parametro size pode ser lido apenas uma vez.
+        first_trace_size = 1
+    
+    
+    if parameter == "Time":
+        # Chamando variáveis globais
+        global t_time
+        global first_trace_time
+
+        # Abrindo arquivos .txt
+        t_time = np.array(df['time'])
+
+        # Obtendo os tempos entre pacotes do trace
+        sub = []
+        i=0
+        for i in range(len(t_time)-1):
+            sub.append(t_time[i+1] - t_time[i])
+        
+        # Passando valores resultantes para a variável padrão t_time
+        t_time = np.array(sub)
+        # print("Trace Time: ", t_time)
+
+        # Plot histograma t_time:
+        plt.hist(t_time)
+        plt.title("Histogram of trace ("+parameter+")")
+        plt.show()
+
+        # Com ajuda da lib Pandas pode-se encontrar algumas estatísticas importantes.
+        # t_time_df = pd.DataFrame(t_time, columns=['Time'])
+        # t_time_df.describe()
+
+        # Definindo que o parametro time pode ser lido apenas uma vez.
+        first_trace_time = 1    
 
 # Função de leitura dos traces e atribuição dos respectivos dados aos vetores
-def read_trace(parameter): 
+def read_txt(parameter): 
 
     if parameter == "Size":
         # Chamando variáveis globais
@@ -192,15 +294,15 @@ def ecdf(y, parameter):
 # Função para definir a distribuição de probabilidade compatível com os 
 # valores do trace utilizada para gerar valores aleatórios por TCDF
 def tcdf(y, parameter):
-    
     # Indexar o vetor y pelo vetor x
     x = np.arange(len(y))
     # Definindo o tamanho da massa de dados
     size = len(x)
+    
     # Definindo a quantidade de bins (classes) dos dados
     nbins = int(np.sqrt(size))
 
-    # Noemalização dos dados
+    # Normalização dos dados
     sc=StandardScaler()
     yy = y.reshape (-1,1)
     sc.fit(yy)
@@ -235,32 +337,29 @@ def tcdf(y, parameter):
     # Configurar os intervalos de classe (nbins) para o teste qui-quadrado
     # Os dados observados serão distribuídos uniformemente em todos os inervalos de classes
     percentile_bins = np.linspace(0,100,nbins)
-    percentile_cutoffs = np.percentile(y_std, percentile_bins)
-    observed_frequency, bins = (np.histogram(y_std, bins=percentile_cutoffs))
+    percentile_cutoffs = np.percentile(y, percentile_bins)
+    observed_frequency, bins = (np.histogram(y, bins=percentile_cutoffs))
     cum_observed_frequency = np.cumsum(observed_frequency)
 
     # Repetir para as distribuições candidatas
     for distribution in dist_names:
         # Configurando a distribuição e obtendo os parâmetros ajustados da distribuição
         dist = getattr(scipy.stats, distribution)
-        param = dist.fit(y_std)
+        param = dist.fit(y)
         #
         # KS TEST
         #
         # Criando percentil
-        percentile = np.linspace(0,100,len(y_std))
-        percentile_cut = np.percentile(y_std, percentile) 
+        percentile = np.linspace(0,100,len(y))
+        percentile_cut = np.percentile(y, percentile) 
         
         # Criando CDF da teórica
-        # Ft = dist.rvs(*param[:-2], loc=param[-2], scale=param[-1], size = size)
         Ft = dist.cdf(percentile_cut, *param[:-2], loc=param[-2], scale=param[-1])
+
         # Criando CDF Inversa 
         Ft_ = dist.ppf(percentile_cut, *param[:-2], loc=param[-2], scale=param[-1])
 
         # Adicionando dados do trace
-        # for i in range(len(y)):
-        #     y[i] = y[i]/np.mean(y)
-        
         t_Fe = y
 
 
@@ -296,10 +395,10 @@ def tcdf(y, parameter):
         Fe_Ft = np.subtract(Fe, Ft)
         
         # Max(Ft(t)-FE-(i),FE+(i)-Ft(t))
-        Dcal_max = np.maximum(Ft_Fe_, Fe_Ft)
+        Dobs_max = np.maximum(Ft_Fe_, Fe_Ft)
         
-        # Dcal= Max(Max (Ft(t)-FE-(i),FE+(i)-Ft(t)))
-        Dcal = np.max(Dcal_max)
+        # Dobs= Max(Max (Ft(t)-FE-(i),FE+(i)-Ft(t)))
+        Dobs = np.max(Dobs_max)
         #
         # Fim cálculo de rejeição
 
@@ -332,22 +431,27 @@ def tcdf(y, parameter):
                 D_critico = 1.95/np.sqrt(len(y))
 
             # Condição para aceitar a hipótese nula do teste KS
-            if Dcal > D_critico:
+            if Dobs > D_critico:
                 rejects = "Reject the Null Hypothesis"
             else:
                 rejects = "Fails to Reject the Null Hypothesis"
 
         # Imprimindo resultados do KS Test
+        print(" ")
         print("KS TEST:")
         print("Confidence degree: ", IC,"%")
         print(rejects, " of ", distribution)
-        print("D observed: ", Dcal)
+        print("D observed: ", Dobs)
         print("D critical: ", D_critico)
         print(" ")
   
-        # Obtém a estatística do teste KS e arredondar para 5 casas decimais
-        Dcal = np.around(Dcal,  5)
-        ks_values.append(Dcal)    
+        # Obtém a estatística do teste KS e arredonda para 5 casas decimais
+        Dobs = np.around(Dobs,  5)
+        ks_values.append(Dobs)    
+
+        #
+        # CHI-SQUARE
+        #
 
         # Obter contagens esperadas nos percentis
         # Isso se baseia em uma 'função de distribuição acumulada' (cdf)
@@ -370,6 +474,7 @@ def tcdf(y, parameter):
         x2 = chi2.ppf(IC, nbins-1)
         
         # Imprimindo resultados do teste Chi-square
+        print(" ")
         print("Chi-square test: ")
         print("Confidence degree: ", IC,"%")
         print("CS: ", ss)
@@ -428,7 +533,7 @@ def tcdf(y, parameter):
         arg = param[:-2]
         loc = param[-2]
         scale = param[-1]
-        print(arg)
+        print(parameters)
         if parameter == "Time":
             dist_time = dist_name
             loc_time = loc
@@ -482,31 +587,22 @@ def tcdf(y, parameter):
     for distribution in dist_names:
         # Set up distribution
         dist = getattr(scipy.stats, distribution)
-        print("Dist: ",dist)
-        param = dist.fit(y_std)
-
-        print("MAX: ", max(y))
-        print("PARAM: ", param)
-        print("arg: ", *param[0:-2])
-        print("loc: ", param[-2])
-        print("scale: ", param[-1])
-        print("Dist: ", dist)
-        arg = param[:-2]
-        loc = param[-2]
-        scale = param[-1]
+        param = dist.fit(y)
 
         #
         # KS TEST
         #
         # Criando percentil
-        percentile = np.linspace(0,100,len(y_std))
-        percentile_cut = np.percentile(y_std, percentile)
+        percentile = np.linspace(0,100,len(y))
+        percentile_cut = np.percentile(y, percentile)
         
         # Criando CDF da teórica
         Ft = dist.cdf(percentile_cut, *param[:-2], loc=param[-2], scale=param[-1])
+        
+        
         # Criando CDF Inversa 
         Ft_ = dist.ppf(percentile_cut, *param[:-2], loc=param[-2], scale=param[-1])
-
+        
         # Adicionando dados do trace
         t_Fe = y
 
@@ -539,10 +635,10 @@ def tcdf(y, parameter):
         Fe_Ft = np.subtract(Fe, Ft)
         
         # Max(Ft(t)-FE-(i),FE+(i)-Ft(t))
-        Dcal_max = np.maximum(Ft_Fe_, Fe_Ft)
+        Dobs_max = np.maximum(Ft_Fe_, Fe_Ft)
         
-        # Dcal= Max(Max (Ft(t)-FE-(i),FE+(i)-Ft(t)))
-        Dcal = np.max(Dcal_max)
+        # Dobs= Max(Max (Ft(t)-FE-(i),FE+(i)-Ft(t)))
+        Dobs = np.max(Dobs_max)
         #
         # Fim cálculo de rejeição
 
@@ -574,7 +670,7 @@ def tcdf(y, parameter):
                 D_critico = 1.95/np.sqrt(len(y))
 
             # Condição para aceitar a hipótese nula do teste KS
-            if Dcal > D_critico:
+            if Dobs > D_critico:
                 rejects = "Reject the Null Hypothesis"
             else:
                 rejects = "Fails to Reject the Null Hypothesis"
@@ -583,14 +679,17 @@ def tcdf(y, parameter):
         print("KS TEST:")
         print("Confidence degree: ", IC,"%")
         print(rejects, " of ", distribution)
-        print("D observed: ", Dcal)
+        print("D observed: ", Dobs)
         print("D critical: ", D_critico)
         print(" ")
 
         # Plotando resultados do teste KS
-        plt.plot(t_Fe, Fe, 'o', label='Empirical Distribution')
         plt.plot(t_Fe, Ft, 'o', label='Teorical Distribution')
+        plt.plot(t_Fe, Fe, 'o', label='Empirical Distribution')
         
+        
+        # plt.plot(t_Fe, Fe, 'o', label='Real Trace')
+        # plt.plot(Ft, Fe, 'o', label='Syntatic Trace')
         # Definindo titulo
         plt.title("KS Test of Real Trace with " + distribution + " Distribution (" + parameter + ")")
         plt.legend()
@@ -615,31 +714,47 @@ def tcdf_generate(dist, loc, scale, arg, parameter):
     # Condição para retorno do valor de acordo com o parametro de rede.
     if parameter == "Size":
         # print("SIZE R_N:", r_N)
-        return(int(r_N))
+        return(int(abs(r_N)))
 
     if parameter == "Time":
         # print("TIME R_N:", r_N)
-        return(float(r_N))
+        return(float(abs(r_N)))
 
 # Função de geração de variáveis aleatórias de acordo com distribuições 
 # de probabilidade e parametros definidos
-def wgwnet_PD(loc, scale, arg, dist_name, parameter):
+def wgwnet_PD(parameter):
     # Mais distribuições podem ser encontradas no site da lib "scipy"
     # Veja https://docs.scipy.org/doc/scipy/reference/stats.html para mais detalhes
     
-    # Setando distribuição a escolhida e seus parametros 
-    dist = getattr(scipy.stats, dist_name)
-
-    # Gerando número aleatório de acordo com a distribuiução e os parametros definidos
-    r_N = dist.rvs(loc=loc, scale=scale, *arg, size=1)
-    
-    # Condição para retorno do valor de acordo com o parametro de rede.
     if parameter == "Size":
-        # print("SIZE R_N: ", int(r_N))
+        # Selecionando distribuição de probabilidade para o parametro Size
+        dist_name = 'uniform'
+        # Definindo parametros da distribuição
+        loc = 1000
+        scale = 1024
+        arg = []
+        # Setando distribuição a escolhida e seus parametros 
+        dist = getattr(scipy.stats, dist_name)
+
+        # Gerando número aleatório de acordo com a distribuiução e os parametros definidos
+        r_N = dist.rvs(loc=loc, scale=scale, *arg, size=1)
         return(int(r_N))
+            
     if parameter == "Time":
-        # print("TIME R_N: ", r_N)
+        # Selecionando distribuição de probabilidade para o parametro Size
+        dist_name = 'uniform'
+        # Definindo parametros da distribuição
+        loc = 0.5
+        scale = 0.8
+        arg = []
+        # Setando distribuição a escolhida e seus parametros 
+        dist = getattr(scipy.stats, dist_name)
+
+        # Gerando número aleatório de acordo com a distribuiução e os parametros definidos
+        r_N = dist.rvs(loc=loc, scale=scale, *arg, size=1)
         return(float(r_N))
+    
+  
 
 # Classe de criação da aplicação do NS3
 class MyApp(ns3.Application):
@@ -711,20 +826,14 @@ class MyApp(ns3.Application):
         global first_tcdf_size
         global first_trace_size
         global size_ns3
+        global reader
         parameter = "Size"
         
         # Condição de escolha do método de geração de variáveis aleatórias 
         # diretamente por uma distribuição de probabiidade
         if mt_RG == "PD":
-            # Selecionando distribuição de probabilidade
-            dist_name = 'uniform'
-            # Definindo parametros da distribuição
-            loc = 1000
-            scale = 1024
-            arg = []
-            
             # Chamando a função wgwnet_PD() e retornando valor gerado para uma variável auxiliar
-            aux_packet = wgwnet_PD(loc,scale, arg, dist_name, parameter)
+            aux_packet = wgwnet_PD(parameter)
             
             # Transformando a variávei auxiliar em um metadado de pacote
             packet = ns3.Packet(aux_packet)
@@ -736,9 +845,12 @@ class MyApp(ns3.Application):
         # baseado nos dados do trace
         if mt_RG == "Trace":
             
-            # Condição de chamada única da função read_trace()
             if first_trace_size == 0:
-                read_trace(parameter)
+                # Definindo o método de leitura do arquivo trace
+                if reader == "txt":
+                    read_txt(parameter)
+                if reader == "xml":
+                    read_xml(parameter)
             
             # Condição de escolha do método por distribuições teórica equivalentes aos dados do trace
             if tr_RG == "tcdf":
@@ -767,7 +879,7 @@ class MyApp(ns3.Application):
 
                 # Concatenando valor de tamanho de pacote gerado
                 size_ns3.append(aux_packet)
-        print("PACKET: ", packet)
+
         # Imprimindo o tempo de envio do pacote e a quantidade de pacotes enviados
         print ("SendPacket(): ", str(ns3.Simulator.Now().GetSeconds()), "s,\t send ", str(self.m_packetsSent), "#")
         
@@ -811,26 +923,24 @@ class MyApp(ns3.Application):
             global first_tcdf_time
             global first_trace_time
             global time_ns3
+            global reader
             parameter = "Time"
              # Condição de escolha do método de geração de variáveis aleatórias 
             # diretamente por uma distribuição de probabiidade
             if mt_RG == "PD":
-                # Selecionando distribuição de probabilidade
-                dist_name = 'uniform'
-                # Definindo parametros da distribuição
-                loc = 0.1
-                scale = 1
-                arg = []
                 # Chamando a função wgwnet_PD() e retornando valor gerado para uma variável auxiliar
-                aux_global_time = wgwnet_PD(loc, scale, arg, dist_name, parameter)
+                aux_global_time = wgwnet_PD(parameter)
                 
             # Condição de escolha do método de geração de variáveis aleatórias 
             # baseado nos dados do trace
             if mt_RG == "Trace":
 
-                # Condição de chamada única da função read_trace()
-                if first_trace_time == 0:
-                    read_trace(parameter)
+                # Definindo o método de leitura do arquivo trace
+                if first_trace_time == 0:  
+                    if reader == "txt":
+                        read_txt(parameter)
+                    if reader == "xml":
+                        read_xml(parameter)
                 
                 # Condição de escolha do método por distribuições teórica equivalentes aos dados do trace
                 if tr_RG == "tcdf":
@@ -853,7 +963,7 @@ class MyApp(ns3.Application):
 
             # Transformando a variávei auxiliar em um metadado de tempo 
             tNext = ns3.Seconds(aux_global_time)
-            print("TIME: ", tNext)
+
             # dataRate = "1Mbps"
             # packetSize = 1024
             # tNext = ns3.Seconds(packetSize * 8.0 / ns3.DataRate(dataRate).GetBitRate())
@@ -913,20 +1023,7 @@ def print_stats(os, st):
         print ("  Packets dropped by reason ", reason ,": ", drops)
     # for reason, drops in enumerate(st.bytesDropped):
         # print "Bytes dropped by reason %i: %i" % (reason, drops)
-# Função de leitura dos arquivos .pcap através do termshark
-# def read_pcap():
-#     # Lendo arquivo .pcap
-#     os.system("cd")
-#     os.system("sudo cp /WGNet/trace-files/trace1.pcap /repos/ns-3-allinone/ns-3.30/")
-#     # Tornando arquivo editável e legível
-#     os.system("chmod 777 trace1.pcap")
-#     # Atribuindo valor do tamanho do pacote em um arquivo .txt 
-#     os.system("termshark -r trace1.pcap -T fields -E separator=/t  -e ip.len > scratch/size_ns3.txt")
-#     # Atribuindo valor do tempo de envio cada pacote em um arquivo .txt
-#     os.system("termshark -r trace1.pcap -T fields -E separator=/t -e frame.time_delta_displayed > scratch/time_ns3.txt")
-#     # Tornando arquivos editáveis e legíveis
-#     os.system("chmod 777 scratch/size_ns3.txt")
-#     os.system("chmod 777 scratch/time_ns3.txt")
+
 
 # Função de comparação dos resultados obtidos com o NS3 com os dados dos traces
 # Esta função é utilizada apenas quando o método de geração variáveis aleatórias selecionado é por "Trace"
@@ -944,7 +1041,7 @@ def compare():
     # Métodos de comparação dos traces 
     # Opções: "qq_e_pp", "Graphical" ou "KS"
     compare = ""
-    # compare = "qq_e_pp"
+    compare = "qq_e_pp"
     if compare == "qq_e_pp":
         #
         # qq and pp plots
@@ -1062,7 +1159,7 @@ def compare():
         
         # Calculate cumulative distributions
         # Criando classes dos dados por percentis
-        S_bins = np.percentile(x,range(0,S_nbins))
+        S_bins = np.percentile(x,range(0,100))
 
         # Obtendo conunts e o número de classes de um histograma dos dados
         y_counts, S_bins = np.histogram(y, S_bins)
@@ -1171,7 +1268,7 @@ def compare():
         
         # Calculate cumulative distributions
         # Criando classes dos dados por percentis
-        T_bins = np.percentile(x,range(0,T_nbins))
+        T_bins = np.percentile(x,range(0,100))
 
         # Obtendo conunts e o número de classes de um histograma dos dados
         y_counts, T_bins = np.histogram(y, T_bins)
@@ -1217,7 +1314,7 @@ def compare():
         plt.tight_layout(pad=4)
         plt.show()
     
-    # compare = "Graphical"
+    compare = "Graphical"
     if compare == "Graphical":
 
         #
@@ -1329,10 +1426,15 @@ def compare():
 
         # Adicionando valores do trace
         Ft = t_size
+        # i=0
+        # for i in range (len(Ft)):
+        #     Ft[i] = Ft[i]/np.mean(Ft)
         
         # Adocionando valores obtidos do NS3
         t_Fe = size_ns3
 
+        print ("MAX SIZE Ft: ", max(Ft))
+        print ("MAX SIZE Fe: ", max(t_Fe))
 
         # Ordenando valores 
         t_Fe.sort()
@@ -1365,8 +1467,8 @@ def compare():
         t_Fe = np.array(t_Fe)
         
         # Plotando resultados do teste KS
-        plt.plot(t_Fe, Fe, 'o', label='Real Trace')
-        plt.plot(Ft, Fe, 'o', label='Syntatic Trace')
+        plt.plot(Ft, Fe, 'o', label='Teorical Distribution')
+        plt.plot(t_Fe, Fe, 'o', label='Empirical Distribution')
         
         # Definindo titulo
         plt.title("KS test of Real Trace and Syntatic Trace" + ' ('+parameter+')')
@@ -1381,10 +1483,12 @@ def compare():
 
         # Adicionando valores do trace
         Ft = t_time
-
+        # for i in range (len(Ft)):
+        #     Ft[i] = Ft[i]/max(Ft)   
         # Adocionando valores obtidos do NS3
         t_Fe = time_ns3
-
+        print ("MAX TIME Ft: ", max(Ft))
+        print ("MAX TIME Fe: ", max(t_Fe))
         # Ordenando valores 
         t_Fe.sort()
         Ft.sort()
@@ -1416,32 +1520,45 @@ def compare():
         t_Fe = np.array(t_Fe)
         
         # Plotando resultados do teste KS
-        plt.plot(t_Fe, Fe, 'o', label='Real Trace')
-        plt.plot(Ft, Fe, 'o', label='Syntatic Trace')
-        
+        # plt.plot(t_Fe, Fe, 'o', label='Real Trace')
+        # plt.plot(Ft, Fe, 'o', label='Syntatic Trace')
+
+        plt.plot(Ft, Fe, 'o', label='Teorical Distribution')
+        plt.plot(t_Fe, Fe, 'o', label='Empirical Distribution')
         # Definindo titulo
         plt.title("KS test of Real Trace and Syntatic Trace" + ' ('+parameter+')')
         plt.legend()
         plt.show() 
-
 # Função principal do código
 def main(argv):
-    global tr_reader
+    global reader
+    global mt_RG
     # Função para leitura de arquivos .pcap
     # if tr_reader == False:
     #     read_pcap()
-    
-    # Obtendo informações por linha de comando
-    cmd = ns.core.CommandLine ()
-    cmd.nPackets = 0
-    cmd.timeStopSimulation = 10
-    cmd.AddValue ("nPackets", "Número de pacotes enviados")
-    cmd.AddValue ("timeStopSimulation", "Tempo final da simulação")
-    cmd.Parse (sys.argv)
-    # Definindo a quantidade de pacotes
-    nPackets = int (cmd.nPackets)
-    # Definindo o tempo de parada da simulação
-    timeStopSimulation = float (cmd.timeStopSimulation)
+    if (mt_RG == "Trace"):
+        # Obtendo informações por linha de comando
+        cmd = ns.core.CommandLine ()
+        cmd.nPackets = 0
+        cmd.timeStopSimulation = 10
+        cmd.app_protocol = "0"
+        cmd.AddValue ("nPackets", "Número de pacotes enviados")
+        cmd.AddValue ("timeStopSimulation", "Tempo final da simulação")
+        cmd.AddValue ("app_protocol", "Protocolo da aplicação")
+        cmd.Parse (sys.argv)
+        # Definindo a quantidade de pacotes
+        nPackets = int (cmd.nPackets)
+        # Definindo o tempo de parada da simulação
+        timeStopSimulation = float (cmd.timeStopSimulation)
+        # Definindo o protocolo da aplicação
+        app_protocol = cmd.app_protocol
+        
+    if (mt_RG=="PD"):    
+        nPackets = 500
+        timeStopSimulation = 100
+        app_protocol = "tcp" # ou "udp"
+
+
 
     # packetSize = 1040
     # nPackets = 500
@@ -1461,58 +1578,99 @@ def main(argv):
 
     # Set the maximum wireless range to 5 meters in order to reproduce a hidden nodes scenario, i.e. the distance between hidden stations is larger 	than 5 meters
     # ns.core.Config.SetDefault ("ns3::RangePropagationLossModel::MaxRange", ns.core.DoubleValue (10))
+    # the test vectors have been determined for a wavelength of 0.125 m 
+    # which corresponds to a frequency of 2398339664.0 Hz in the vacuum
+    # ns.core.Config.SetDefault ("ns3::FriisPropagationLossModel::Frequency", ns.core.DoubleValue (2398339664.0))
+    # ns.core.Config.SetDefault ("ns3::FriisPropagationLossModel::SystemLoss", ns.core.DoubleValue (1.0))
+    
+    wifi_net = "adhoc"
+    if wifi_net == "adhoc":
+        allWifi = ns.network.NodeContainer ()
+        allWifi.Create (3)
 
-    wifiStaNodes = ns.network.NodeContainer ()
-    wifiStaNodes.Create (2)
+    if wifi_net == "ap_sta":
+        wifiStaNodes = ns.network.NodeContainer ()
+        wifiStaNodes.Create (2)
 
-    wifiApNode = ns.network.NodeContainer ()
-    wifiApNode.Create (1)
+        wifiApNode = ns.network.NodeContainer ()
+        wifiApNode.Create (1)
+    
+    if wifi_net == "adhoc":
+        mobility = ns.mobility.MobilityHelper ()
+        mobility.SetPositionAllocator ("ns3::RandomRectanglePositionAllocator",
+                            "X", ns.core.StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=10]"),
+                            "Y", ns.core.StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=10]"))
+        mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel")
+        mobility.Install (allWifi)
 
+    if wifi_net == "ap_sta":
+        mobility = ns.mobility.MobilityHelper ()
+        positionAlloc = ns.mobility.ListPositionAllocator ()
+
+        positionAlloc.Add (ns.core.Vector3D (5.0, 0.0, 0.0))
+        positionAlloc.Add (ns.core.Vector3D (5.0, 1.0, 0.0))
+        positionAlloc.Add (ns.core.Vector3D (5.0, 0.0, 0.0))
+        mobility.SetPositionAllocator (positionAlloc)
+
+        mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel")
+        mobility.Install (wifiApNode)
+        mobility.Install (wifiStaNodes)
+    
+    wifi = ns.wifi.WifiHelper ()
+    wifi.EnableLogComponents ()  # Turn on all Wifi logging
+    
     channel = ns.wifi.YansWifiChannelHelper.Default ()
+    channel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel")
     # channel.AddPropagationLoss ("ns3::RangePropagationLossModel") # wireless range limited to 5 meters!
+    # channel.AddPropagationLoss ("ns3::FriisPropagationLossModel")
+    # channel.AddPropagationLoss ("ns3::TwoRayGroundPropagationLossModel","Frequency", ns.core.DoubleValue (5.150e9),
+    #                                                                     "SystemLoss", ns.core.DoubleValue (1.0),
+    #                                                                     "MinDistance", ns.core.DoubleValue (0.1),
+    #                                                                     "HeightAboveZ", ns.core.DoubleValue (0))
 
     phy = ns.wifi.YansWifiPhyHelper.Default ()
     phy.SetPcapDataLinkType (ns.wifi.YansWifiPhyHelper.DLT_IEEE802_11_RADIO)
+    
     phy.SetChannel (channel.Create ())
+    phy.Set ("RxGain",ns.core.DoubleValue (0))
 
-    wifi = ns.wifi.WifiHelper ()
-    wifi.SetStandard (ns.wifi.WIFI_PHY_STANDARD_80211n_5GHZ)
-    wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", ns.core.StringValue ("HtMcs7"), 
-                                                                  "ControlMode", ns.core.StringValue ("HtMcs0"))
+    
+    wifi.SetStandard (ns.wifi.WIFI_PHY_STANDARD_80211g)
+    wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", ns.core.StringValue ("ErpOfdmRate54Mbps"), 
+                                                                  "ControlMode", ns.core.StringValue ("ErpOfdmRate54Mbps"))
     mac = ns.wifi.WifiMacHelper ()
 
-    ssid = ns.wifi.Ssid ("simple-mpdu-aggregation")
-    mac.SetType ("ns3::StaWifiMac",
-                "Ssid", ns.wifi.SsidValue (ssid),
-                "ActiveProbing", ns.core.BooleanValue (False),
-                "BE_MaxAmpduSize", ns.core.UintegerValue (10))
+    if wifi_net == "adhoc":
+        mac.SetType ("ns3::AdhocWifiMac")
+        allDevices = ns.network.NetDeviceContainer ()
+        allDevices = wifi.Install (phy, mac, allWifi)
 
-    staDevices = ns.network.NetDeviceContainer ()
-    staDevices = wifi.Install (phy, mac, wifiStaNodes)
+    if wifi_net == "ap_sta":
+        ssid = ns.wifi.Ssid ("simple-mpdu-aggregation")
+        mac.SetType ("ns3::StaWifiMac",
+                    "Ssid", ns.wifi.SsidValue (ssid),
+                    "ActiveProbing", ns.core.BooleanValue (False),
+                    "BE_MaxAmpduSize", ns.core.UintegerValue (10))
 
-    mac.SetType ("ns3::ApWifiMac",
-                "Ssid", ns.wifi.SsidValue (ssid),
-                "EnableBeaconJitter", ns.core.BooleanValue (False),
-                "BE_MaxAmpduSize", ns.core.UintegerValue (10))
+        staDevices = ns.network.NetDeviceContainer ()
+        staDevices = wifi.Install (phy, mac, wifiStaNodes)
 
-    apDevice = ns.network.NetDeviceContainer ()
-    apDevice = wifi.Install (phy, mac, wifiApNode)
+        mac.SetType ("ns3::ApWifiMac",
+                    "Ssid", ns.wifi.SsidValue (ssid),
+                    "EnableBeaconJitter", ns.core.BooleanValue (False),
+                    "BE_MaxAmpduSize", ns.core.UintegerValue (10))
 
-    mobility = ns.mobility.MobilityHelper ()
-    positionAlloc = ns.mobility.ListPositionAllocator ()
+        apDevice = ns.network.NetDeviceContainer ()
+        apDevice = wifi.Install (phy, mac, wifiApNode)
 
-    positionAlloc.Add (ns.core.Vector3D (5.0, 0.0, 0.0))
-    positionAlloc.Add (ns.core.Vector3D (5.0, 1.0, 0.0))
-    positionAlloc.Add (ns.core.Vector3D (5.0, 0.0, 0.0))
-    mobility.SetPositionAllocator (positionAlloc)
+    if wifi_net == "adhoc":
+        stack = ns.internet.InternetStackHelper ()
+        stack.Install (allWifi)
 
-    mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel")
-    mobility.Install (wifiApNode)
-    mobility.Install (wifiStaNodes)
-
-    stack = ns.internet.InternetStackHelper ()
-    stack.Install (wifiApNode)
-    stack.Install (wifiStaNodes)
+    if wifi_net == "ap_sta":
+        stack = ns.internet.InternetStackHelper ()
+        stack.Install (wifiApNode)
+        stack.Install (wifiStaNodes)
 
     # Definindo IP dos nós
     # address = ns.internet.Ipv4AddressHelper ()
@@ -1524,12 +1682,18 @@ def main(argv):
 
     # Definindo IP dos nós
     address = ns3.Ipv4AddressHelper()
-    address.SetBase(ns3.Ipv4Address("10.1.1.0"), ns3.Ipv4Mask("255.255.255.0"))
-    ApInterface = ns.internet.Ipv4InterfaceContainer ()
-    ApInterface = address.Assign (apDevice)
-    StaInterface = ns.internet.Ipv4InterfaceContainer ()
-    StaInterface = address.Assign (staDevices)
-
+    address.SetBase(ns3.Ipv4Address("192.168.1.0"), ns3.Ipv4Mask("255.255.255.0"))
+    if wifi_net == "adhoc":
+        AllInterface = ns.internet.Ipv4InterfaceContainer ()
+        AllInterface = address.Assign (allDevices)
+    if wifi_net == "ap_sta":
+        ApInterface = ns.internet.Ipv4InterfaceContainer ()
+        ApInterface = address.Assign (apDevice)
+        # StaInterface = ns.internet.Ipv4InterfaceContainer ()
+        # StaInterface = address.Assign (staDevices)
+    
+    ns.internet.Ipv4GlobalRoutingHelper.PopulateRoutingTables()
+    
     
     # # Definindo taxa de erro
     # em = ns3.RateErrorModel()
@@ -1538,76 +1702,148 @@ def main(argv):
     # em.SetRandomVariable(ns.core.UniformRandomVariable())
     # # Instalando taxa de erro no nó 1
     # devices.Get(1).SetAttribute("ReceiveErrorModel", ns3.PointerValue(em))
+    if (app_protocol == "tcp"):
+        # Application TCP
+        sinkPort = 8080
+        # Client Application
+        if wifi_net == "adhoc":
+            # Serve Application
+            packetSinkHelper = ns3.PacketSinkHelper("ns3::TcpSocketFactory", ns3.InetSocketAddress(ns3.Ipv4Address.GetAny(), sinkPort))
+            sinkApps = packetSinkHelper.Install(allWifi.Get(1))
+            sinkApps.Start(ns3.Seconds(0.0))
+            sinkApps.Stop(ns3.Seconds(timeStopSimulation))
+            # APP0
+            sinkAddress = ns3.Address(ns3.InetSocketAddress(AllInterface.GetAddress (1), sinkPort))
+            ns3TcpSocket = ns3.Socket.CreateSocket(allWifi.Get(0), ns3.TcpSocketFactory.GetTypeId())
+            app = MyApp()
+            # def Setup(self, socket, address, packetSize, nPackets, dataRate):
+            # app.Setup(ns3TcpSocket, sinkAddress, packetSize, nPackets, ns3.DataRate(dataRate))
+            app.Setup(ns3TcpSocket, sinkAddress, nPackets)
+            allWifi.Get(0).AddApplication(app)
+            app.SetStartTime(ns3.Seconds(0.0))
+            app.SetStopTime(ns3.Seconds(timeStopSimulation))
+            # APP2
+            sinkAddress2 = ns3.Address(ns3.InetSocketAddress(AllInterface.GetAddress (1), sinkPort))
+            ns3TcpSocket2 = ns3.Socket.CreateSocket(allWifi.Get(2), ns3.TcpSocketFactory.GetTypeId())
+            app2 = MyApp()
+            # def Setup(self, socket, address, packetSize, nPackets, dataRate):
+            # app.Setup(ns3TcpSocket, sinkAddress, packetSize, nPackets, ns3.DataRate(dataRate))
+            app2.Setup(ns3TcpSocket2, sinkAddress2, nPackets)
+            allWifi.Get(2).AddApplication(app2)
+            app.SetStartTime(ns3.Seconds(0.0))
+            app.SetStopTime(ns3.Seconds(timeStopSimulation))
+        # Client Application
+        if wifi_net == "ap_sta":
+            # Serve Application
+            packetSinkHelper = ns3.PacketSinkHelper("ns3::TcpSocketFactory", ns3.InetSocketAddress(ns3.Ipv4Address.GetAny(), sinkPort))
+            sinkApps = packetSinkHelper.Install(wifiApNode.Get(0))
+            sinkApps.Start(ns3.Seconds(0.0))
+            sinkApps.Stop(ns3.Seconds(timeStopSimulation))
 
-    # Application TCP
-    sinkPort = 8080
-    
-    # Serve Application
-    packetSinkHelper = ns3.PacketSinkHelper("ns3::TcpSocketFactory", ns3.InetSocketAddress(ns3.Ipv4Address.GetAny(), sinkPort))
-    sinkApps = packetSinkHelper.Install(wifiApNode.Get(0))
-    sinkApps.Start(ns3.Seconds(timeStopSimulation/2))
-    sinkApps.Stop(ns3.Seconds(timeStopSimulation))
+            sinkAddress = ns3.Address(ns3.InetSocketAddress(ApInterface.GetAddress (0), sinkPort))
+            ns3TcpSocket = ns3.Socket.CreateSocket(wifiStaNodes.Get(1), ns3.TcpSocketFactory.GetTypeId())
+            app = MyApp()
+            # def Setup(self, socket, address, packetSize, nPackets, dataRate):
+            # app.Setup(ns3TcpSocket, sinkAddress, packetSize, nPackets, ns3.DataRate(dataRate))
+            app.Setup(ns3TcpSocket, sinkAddress, nPackets)
+            wifiStaNodes.Get(1).AddApplication(app)
+            app.SetStartTime(ns3.Seconds(timeStopSimulation/2))
+            app.SetStopTime(ns3.Seconds(timeStopSimulation))
 
-    # Client Application
-    sinkAddress = ns3.Address(ns3.InetSocketAddress(ApInterface.GetAddress (0), sinkPort))
-    ns3TcpSocket = ns3.Socket.CreateSocket(wifiStaNodes.Get(0), ns3.TcpSocketFactory.GetTypeId())
-    app = MyApp()
-    # def Setup(self, socket, address, packetSize, nPackets, dataRate):
-    # app.Setup(ns3TcpSocket, sinkAddress, packetSize, nPackets, ns3.DataRate(dataRate))
-    app.Setup(ns3TcpSocket, sinkAddress, nPackets)
-    wifiStaNodes.Get(1).AddApplication(app)
-    app.SetStartTime(ns3.Seconds(timeStopSimulation/2))
-    app.SetStopTime(ns3.Seconds(timeStopSimulation))
+        ns3.Simulator.Schedule(ns3.Seconds(1), CwndChange, app)
 
-    ns3.Simulator.Schedule(ns3.Seconds(1), CwndChange, app)
-
-
-    # Application UDP
-    sinkPort = 9
-    # Aplicação do servidor
-    packetSinkHelper = ns3.PacketSinkHelper("ns3::UdpSocketFactory", ns3.InetSocketAddress(ApInterface.GetAddress (0), sinkPort))
-    # packetSinkHelper = ns.applications.UdpServerHelper (sinkPort)
-    sinkApps = packetSinkHelper.Install(wifiApNode.Get(0))
-    sinkApps.Start(ns3.Seconds(0.1))
-    sinkApps.Stop(ns3.Seconds(timeStopSimulation/2))
+    if (app_protocol == "udp"):
+        # Application UDP
+        sinkPort = 1234
+        if wifi_net == "adhoc":
+            # Aplicação do servidor
+            packetSinkHelper = ns3.PacketSinkHelper("ns3::UdpSocketFactory", ns3.InetSocketAddress(AllInterface.GetAddress (0), sinkPort))
+            # packetSinkHelper = ns.applications.UdpServerHelper (sinkPort)
+            sinkApps = packetSinkHelper.Install(allWifi.Get(1))
+            sinkApps.Start(ns3.Seconds(0.0))
+            sinkApps.Stop(ns3.Seconds(timeStopSimulation))
 
 
-    # Aplicação do cliente 0
-    sinkAddress0 = ns3.Address(ns3.InetSocketAddress(ApInterface.GetAddress (0), sinkPort))
-    # sinkAddress0 = ns.applications.UdpClientHelper (ApInterface.GetAddress (0), sinkPort)
-    ns3UdpSocket0 = ns3.Socket.CreateSocket(wifiStaNodes.Get(1), ns3.UdpSocketFactory.GetTypeId())
-    
-    # Definindo aplicação na classe Myapp
-    app0 = MyApp()
+            # Aplicação do cliente 0
+            sinkAddress0 = ns3.Address(ns3.InetSocketAddress(AllInterface.GetAddress (1), sinkPort))
+            # sinkAddress0 = ns.applications.UdpClientHelper (AllInterface.GetAddress (0), sinkPort)
+            ns3UdpSocket0 = ns3.Socket.CreateSocket(allWifi.Get(0), ns3.UdpSocketFactory.GetTypeId())
+            
+            # Definindo aplicação na classe Myapp
+            app0 = MyApp()
 
-    # Chamando a função setup para configurar a aplicação 0
-    # def Setup(self, socket, address, packetSize, nPackets, dataRate):
-    app0.Setup(ns3UdpSocket0, sinkAddress0, nPackets)
-    # Configurando app no nó 0
-    wifiStaNodes.Get(1).AddApplication(app0)
-    # Inicio da aplicação
-    app0.SetStartTime(ns3.Seconds(1))
-    # Término da aplicação
-    app0.SetStopTime(ns3.Seconds(timeStopSimulation/2))
+            # Chamando a função setup para configurar a aplicação 0
+            # def Setup(self, socket, address, packetSize, nPackets, dataRate):
+            app0.Setup(ns3UdpSocket0, sinkAddress0, nPackets)
+            # Configurando app no nó 0
+            allWifi.Get(0).AddApplication(app0)
+            # Inicio da aplicação
+            app0.SetStartTime(ns3.Seconds(0.0))
+            # Término da aplicação
+            app0.SetStopTime(ns3.Seconds(timeStopSimulation))
 
-    # # Aplicação do cliente 1
-    # sinkAddress1 = ns3.Address(ns3.InetSocketAddress(ApInterface.GetAddress (0), sinkPort))
-    # # sinkAddress1 = ns.applications.UdpClientHelper (ApInterface.GetAddress (0), sinkPort)
-    # ns3UdpSocket1 = ns3.Socket.CreateSocket(wifiStaNodes.Get(1), ns3.UdpSocketFactory.GetTypeId())
-    # # Definindo aplicação na classe Myapp 1
-    # app1 = MyApp()
+            # # Aplicação do cliente 1
+            # sinkAddress1 = ns3.Address(ns3.InetSocketAddress(AllInterface.GetAddress (0), sinkPort))
+            # # sinkAddress1 = ns.applications.UdpClientHelper (ApInterface.GetAddress (0), sinkPort)
+            # ns3UdpSocket1 = ns3.Socket.CreateSocket(allWifi.Get(2), ns3.UdpSocketFactory.GetTypeId())
+            # # Definindo aplicação na classe Myapp 1
+            # app1 = MyApp()
 
-    # # Chamando a função setup para configurar a aplicação 1
-    # # def Setup(self, socket, address, packetSize, nPackets, dataRate):
-    # app1.Setup(ns3UdpSocket1, sinkAddress1, nPackets)
-    # # Configurando app no nó 1
-    # wifiStaNodes.Get(1).AddApplication(app1)
-    # # Inicio da aplicação
-    # app1.SetStartTime(ns3.Seconds((timeStopSimulation/2)+1))
-    # # Término da aplicação
-    # app1.SetStopTime(ns3.Seconds(timeStopSimulation))
+            # # Chamando a função setup para configurar a aplicação 1
+            # # def Setup(self, socket, address, packetSize, nPackets, dataRate):
+            # app1.Setup(ns3UdpSocket1, sinkAddress1, nPackets)
+            # # Configurando app no nó 1
+            # allWifi.Get(2).AddApplication(app1)
+            # # Inicio da aplicação
+            # app1.SetStartTime(ns3.Seconds((timeStopSimulation/2)+1))
+            # # Término da aplicação
+            # app1.SetStopTime(ns3.Seconds(timeStopSimulation))
 
-    # ns3.Simulator.Schedule(ns3.Seconds(3), IncRate, app, ns3.DataRate(dataRate))
+        if wifi_net == "ap_sta":
+            # Aplicação do servidor
+            packetSinkHelper = ns3.PacketSinkHelper("ns3::UdpSocketFactory", ns3.InetSocketAddress(ApInterface.GetAddress (0), sinkPort))
+            # packetSinkHelper = ns.applications.UdpServerHelper (sinkPort)
+            sinkApps = packetSinkHelper.Install(allWifi.Get(0))
+            sinkApps.Start(ns3.Seconds(0.1))
+            sinkApps.Stop(ns3.Seconds(timeStopSimulation))
+
+
+            # Aplicação do cliente 0
+            sinkAddress0 = ns3.Address(ns3.InetSocketAddress(ApInterface.GetAddress (0), sinkPort))
+            # sinkAddress0 = ns.applications.UdpClientHelper (ApInterface.GetAddress (0), sinkPort)
+            ns3UdpSocket0 = ns3.Socket.CreateSocket(wifiStaNodes.Get(1), ns3.UdpSocketFactory.GetTypeId())
+            
+            # Definindo aplicação na classe Myapp
+            app0 = MyApp()
+
+            # Chamando a função setup para configurar a aplicação 0
+            # def Setup(self, socket, address, packetSize, nPackets, dataRate):
+            app0.Setup(ns3UdpSocket0, sinkAddress0, nPackets)
+            # Configurando app no nó 0
+            wifiStaNodes.Get(1).AddApplication(app0)
+            # Inicio da aplicação
+            app0.SetStartTime(ns3.Seconds(1))
+            # Término da aplicação
+            app0.SetStopTime(ns3.Seconds(timeStopSimulation))
+
+            # # Aplicação do cliente 1
+            # sinkAddress1 = ns3.Address(ns3.InetSocketAddress(ApInterface.GetAddress (0), sinkPort))
+            # # sinkAddress1 = ns.applications.UdpClientHelper (ApInterface.GetAddress (0), sinkPort)
+            # ns3UdpSocket1 = ns3.Socket.CreateSocket(wifiStaNodes.Get(1), ns3.UdpSocketFactory.GetTypeId())
+            # # Definindo aplicação na classe Myapp 1
+            # app1 = MyApp()
+
+            # # Chamando a função setup para configurar a aplicação 1
+            # # def Setup(self, socket, address, packetSize, nPackets, dataRate):
+            # app1.Setup(ns3UdpSocket1, sinkAddress1, nPackets)
+            # # Configurando app no nó 1
+            # wifiStaNodes.Get(1).AddApplication(app1)
+            # # Inicio da aplicação
+            # app1.SetStartTime(ns3.Seconds((timeStopSimulation/2)+1))
+            # # Término da aplicação
+            # app1.SetStopTime(ns3.Seconds(timeStopSimulation))
+
+        # ns3.Simulator.Schedule(ns3.Seconds(3), IncRate, app, ns3.DataRate(dataRate))
 
     # Inicializando Flowmonitor
     flowmon_helper = ns3.FlowMonitorHelper()
@@ -1649,7 +1885,7 @@ def main(argv):
         print_stats(sys.stdout, flow_stats)
    
     
-    global mt_RG
+    
 
     if mt_RG == "Trace":
         compare()

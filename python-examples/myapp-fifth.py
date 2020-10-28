@@ -111,9 +111,110 @@ first_trace_size = 0
 size_ns3 = []
 time_ns3 = []
 
+# Definindo se o trace é ".txt" ou "xml"
+reader = "txt"
+
+size_xml = 0
+stop_xml = 0
+# Função de leitura dos arquivos xml
+def read_xml(parameter):
+    global size_xml
+    global stop_xml
+    ifile = open('scratch/results-http-docker.pdml','r')
+
+    print(ifile)
+
+    columns = ["length", "time"]
+    df = pd.DataFrame(columns = columns)
+
+    data0 = []
+    data1 = []
+   
+    for line in ifile.readlines(): 
+        if ("httpSample" in line and "</httpSample>" not in line):
+            data0.append(line)
+        if ("httpSample" in line and "</httpSample>" not in line):
+            data1.append(line)
+
+    ifile.close()
+    # Save parameters in DataFrames and Export to .txt
+    df = pd.DataFrame(list(zip(data0, data1)), columns=['length', 'time'])
+
+
+    df['length'] = df['length'].str.split('by="').str[-1]
+    df['time'] = df['time'].str.split('ts="').str[-1]
+
+    df['length'] = df['length'].str.split('"').str[0]
+    df['time'] = df['time'].str.split('"').str[0]
+
+    df["length"] = pd.to_numeric(df["length"],errors='coerce')
+    df["time"] = pd.to_numeric(df["time"],errors='coerce')
+    
+    print("DF: ", df)
+
+
+
+    size_xml = len(df["time"])
+
+    stop_xml = df["time"]
+
+    print("STOP: ", len(stop_xml))
+    stop_xml = stop_xml[len(stop_xml)-1]
+
+    if parameter == "Size":
+        # Chamando variáveis globais
+        global t_size
+        global first_trace_size
+
+        # Abrindo arquivos .txt
+        t_size = np.array(df['length'])
+        # print("Trace Size: ", t_size)
+
+        # Plot histograma de t_size:
+        plt.hist(t_size)
+        plt.title("Histogram of trace ("+parameter+")")
+        plt.show()
+
+        # Com ajuda da lib Pandas podemos encontrar algumas estatísticas importantes.
+        # y_size_df = pd.DataFrame(y_size, columns=['Size'])
+        # y_size_df.describe()
+
+        # Definindo que o parametro size pode ser lido apenas uma vez.
+        first_trace_size = 1
+    
+    
+    if parameter == "Time":
+        # Chamando variáveis globais
+        global t_time
+        global first_trace_time
+
+        # Abrindo arquivos .txt
+        t_time = np.array(df['time'])
+
+        # Obtendo os tempos entre pacotes do trace
+        sub = []
+        i=0
+        for i in range(len(t_time)-1):
+            sub.append(t_time[i+1] - t_time[i])
+        
+        # Passando valores resultantes para a variável padrão t_time
+        t_time = np.array(sub)
+        # print("Trace Time: ", t_time)
+
+        # Plot histograma t_time:
+        plt.hist(t_time)
+        plt.title("Histogram of trace ("+parameter+")")
+        plt.show()
+
+        # Com ajuda da lib Pandas pode-se encontrar algumas estatísticas importantes.
+        # t_time_df = pd.DataFrame(t_time, columns=['Time'])
+        # t_time_df.describe()
+
+        # Definindo que o parametro time pode ser lido apenas uma vez.
+        first_trace_time = 1    
 
 # Função de leitura dos traces e atribuição dos respectivos dados aos vetores
-def read_trace(parameter): 
+def read_txt(parameter): 
 
     if parameter == "Size":
         # Chamando variáveis globais
@@ -128,6 +229,7 @@ def read_trace(parameter):
         plt.hist(t_size)
         plt.title("Histogram of trace ("+parameter+")")
         plt.show()
+        
 
         # Com ajuda da lib Pandas podemos encontrar algumas estatísticas importantes.
         # y_size_df = pd.DataFrame(y_size, columns=['Size'])
@@ -211,15 +313,15 @@ def ecdf(y, parameter):
 # Função para definir a distribuição de probabilidade compatível com os 
 # valores do trace utilizada para gerar valores aleatórios por TCDF
 def tcdf(y, parameter):
-    
     # Indexar o vetor y pelo vetor x
     x = np.arange(len(y))
     # Definindo o tamanho da massa de dados
     size = len(x)
+    
     # Definindo a quantidade de bins (classes) dos dados
     nbins = int(np.sqrt(size))
 
-    # Noemalização dos dados
+    # Normalização dos dados
     sc=StandardScaler()
     yy = y.reshape (-1,1)
     sc.fit(yy)
@@ -254,32 +356,29 @@ def tcdf(y, parameter):
     # Configurar os intervalos de classe (nbins) para o teste qui-quadrado
     # Os dados observados serão distribuídos uniformemente em todos os inervalos de classes
     percentile_bins = np.linspace(0,100,nbins)
-    percentile_cutoffs = np.percentile(y_std, percentile_bins)
-    observed_frequency, bins = (np.histogram(y_std, bins=percentile_cutoffs))
+    percentile_cutoffs = np.percentile(y, percentile_bins)
+    observed_frequency, bins = (np.histogram(y, bins=percentile_cutoffs))
     cum_observed_frequency = np.cumsum(observed_frequency)
 
     # Repetir para as distribuições candidatas
     for distribution in dist_names:
         # Configurando a distribuição e obtendo os parâmetros ajustados da distribuição
         dist = getattr(scipy.stats, distribution)
-        param = dist.fit(y_std)
+        param = dist.fit(y)
         #
         # KS TEST
         #
         # Criando percentil
-        percentile = np.linspace(0,100,len(y_std))
-        percentile_cut = np.percentile(y_std, percentile) 
+        percentile = np.linspace(0,100,len(y))
+        percentile_cut = np.percentile(y, percentile) 
         
         # Criando CDF da teórica
-        # Ft = dist.rvs(*param[:-2], loc=param[-2], scale=param[-1], size = size)
         Ft = dist.cdf(percentile_cut, *param[:-2], loc=param[-2], scale=param[-1])
+
         # Criando CDF Inversa 
         Ft_ = dist.ppf(percentile_cut, *param[:-2], loc=param[-2], scale=param[-1])
 
         # Adicionando dados do trace
-        # for i in range(len(y)):
-        #     y[i] = y[i]/np.mean(y)
-        
         t_Fe = y
 
 
@@ -315,10 +414,10 @@ def tcdf(y, parameter):
         Fe_Ft = np.subtract(Fe, Ft)
         
         # Max(Ft(t)-FE-(i),FE+(i)-Ft(t))
-        Dcal_max = np.maximum(Ft_Fe_, Fe_Ft)
+        Dobs_max = np.maximum(Ft_Fe_, Fe_Ft)
         
-        # Dcal= Max(Max (Ft(t)-FE-(i),FE+(i)-Ft(t)))
-        Dcal = np.max(Dcal_max)
+        # Dobs= Max(Max (Ft(t)-FE-(i),FE+(i)-Ft(t)))
+        Dobs = np.max(Dobs_max)
         #
         # Fim cálculo de rejeição
 
@@ -351,22 +450,27 @@ def tcdf(y, parameter):
                 D_critico = 1.95/np.sqrt(len(y))
 
             # Condição para aceitar a hipótese nula do teste KS
-            if Dcal > D_critico:
+            if Dobs > D_critico:
                 rejects = "Reject the Null Hypothesis"
             else:
                 rejects = "Fails to Reject the Null Hypothesis"
 
         # Imprimindo resultados do KS Test
+        print(" ")
         print("KS TEST:")
         print("Confidence degree: ", IC,"%")
         print(rejects, " of ", distribution)
-        print("D observed: ", Dcal)
+        print("D observed: ", Dobs)
         print("D critical: ", D_critico)
         print(" ")
   
-        # Obtém a estatística do teste KS e arredondar para 5 casas decimais
-        Dcal = np.around(Dcal,  5)
-        ks_values.append(Dcal)    
+        # Obtém a estatística do teste KS e arredonda para 5 casas decimais
+        Dobs = np.around(Dobs,  5)
+        ks_values.append(Dobs)    
+
+        #
+        # CHI-SQUARE
+        #
 
         # Obter contagens esperadas nos percentis
         # Isso se baseia em uma 'função de distribuição acumulada' (cdf)
@@ -389,6 +493,7 @@ def tcdf(y, parameter):
         x2 = chi2.ppf(IC, nbins-1)
         
         # Imprimindo resultados do teste Chi-square
+        print(" ")
         print("Chi-square test: ")
         print("Confidence degree: ", IC,"%")
         print("CS: ", ss)
@@ -447,7 +552,7 @@ def tcdf(y, parameter):
         arg = param[:-2]
         loc = param[-2]
         scale = param[-1]
-        print(arg)
+        print(parameters)
         if parameter == "Time":
             dist_time = dist_name
             loc_time = loc
@@ -501,31 +606,22 @@ def tcdf(y, parameter):
     for distribution in dist_names:
         # Set up distribution
         dist = getattr(scipy.stats, distribution)
-        print("Dist: ",dist)
-        param = dist.fit(y_std)
-
-        print("MAX: ", max(y))
-        print("PARAM: ", param)
-        print("arg: ", *param[0:-2])
-        print("loc: ", param[-2])
-        print("scale: ", param[-1])
-        print("Dist: ", dist)
-        arg = param[:-2]
-        loc = param[-2]
-        scale = param[-1]
+        param = dist.fit(y)
 
         #
         # KS TEST
         #
         # Criando percentil
-        percentile = np.linspace(0,100,len(y_std))
-        percentile_cut = np.percentile(y_std, percentile)
+        percentile = np.linspace(0,100,len(y))
+        percentile_cut = np.percentile(y, percentile)
         
         # Criando CDF da teórica
         Ft = dist.cdf(percentile_cut, *param[:-2], loc=param[-2], scale=param[-1])
+        
+        
         # Criando CDF Inversa 
         Ft_ = dist.ppf(percentile_cut, *param[:-2], loc=param[-2], scale=param[-1])
-
+        
         # Adicionando dados do trace
         t_Fe = y
 
@@ -558,10 +654,10 @@ def tcdf(y, parameter):
         Fe_Ft = np.subtract(Fe, Ft)
         
         # Max(Ft(t)-FE-(i),FE+(i)-Ft(t))
-        Dcal_max = np.maximum(Ft_Fe_, Fe_Ft)
+        Dobs_max = np.maximum(Ft_Fe_, Fe_Ft)
         
-        # Dcal= Max(Max (Ft(t)-FE-(i),FE+(i)-Ft(t)))
-        Dcal = np.max(Dcal_max)
+        # Dobs= Max(Max (Ft(t)-FE-(i),FE+(i)-Ft(t)))
+        Dobs = np.max(Dobs_max)
         #
         # Fim cálculo de rejeição
 
@@ -593,7 +689,7 @@ def tcdf(y, parameter):
                 D_critico = 1.95/np.sqrt(len(y))
 
             # Condição para aceitar a hipótese nula do teste KS
-            if Dcal > D_critico:
+            if Dobs > D_critico:
                 rejects = "Reject the Null Hypothesis"
             else:
                 rejects = "Fails to Reject the Null Hypothesis"
@@ -602,14 +698,17 @@ def tcdf(y, parameter):
         print("KS TEST:")
         print("Confidence degree: ", IC,"%")
         print(rejects, " of ", distribution)
-        print("D observed: ", Dcal)
+        print("D observed: ", Dobs)
         print("D critical: ", D_critico)
         print(" ")
 
         # Plotando resultados do teste KS
-        plt.plot(t_Fe, Fe, 'o', label='Empirical Distribution')
         plt.plot(t_Fe, Ft, 'o', label='Teorical Distribution')
+        plt.plot(t_Fe, Fe, 'o', label='Empirical Distribution')
         
+        
+        # plt.plot(t_Fe, Fe, 'o', label='Real Trace')
+        # plt.plot(Ft, Fe, 'o', label='Syntatic Trace')
         # Definindo titulo
         plt.title("KS Test of Real Trace with " + distribution + " Distribution (" + parameter + ")")
         plt.legend()
@@ -634,31 +733,47 @@ def tcdf_generate(dist, loc, scale, arg, parameter):
     # Condição para retorno do valor de acordo com o parametro de rede.
     if parameter == "Size":
         # print("SIZE R_N:", r_N)
-        return(int(r_N))
+        return(int(abs(r_N)))
 
     if parameter == "Time":
         # print("TIME R_N:", r_N)
-        return(float(r_N))
+        return(float(abs(r_N)))
 
 # Função de geração de variáveis aleatórias de acordo com distribuições 
 # de probabilidade e parametros definidos
-def wgwnet_PD(loc, scale, arg, dist_name, parameter):
+def wgwnet_PD(parameter):
     # Mais distribuições podem ser encontradas no site da lib "scipy"
     # Veja https://docs.scipy.org/doc/scipy/reference/stats.html para mais detalhes
     
-    # Setando distribuição a escolhida e seus parametros 
-    dist = getattr(scipy.stats, dist_name)
-
-    # Gerando número aleatório de acordo com a distribuiução e os parametros definidos
-    r_N = dist.rvs(loc=loc, scale=scale, *arg, size=1)
-    
-    # Condição para retorno do valor de acordo com o parametro de rede.
     if parameter == "Size":
-        # print("SIZE R_N: ", int(r_N))
+        # Selecionando distribuição de probabilidade para o parametro Size
+        dist_name = 'uniform'
+        # Definindo parametros da distribuição
+        loc = 1000
+        scale = 1024
+        arg = []
+        # Setando distribuição a escolhida e seus parametros 
+        dist = getattr(scipy.stats, dist_name)
+
+        # Gerando número aleatório de acordo com a distribuiução e os parametros definidos
+        r_N = dist.rvs(loc=loc, scale=scale, *arg, size=1)
         return(int(r_N))
+            
     if parameter == "Time":
-        # print("TIME R_N: ", r_N)
+        # Selecionando distribuição de probabilidade para o parametro Size
+        dist_name = 'uniform'
+        # Definindo parametros da distribuição
+        loc = 0.5
+        scale = 0.8
+        arg = []
+        # Setando distribuição a escolhida e seus parametros 
+        dist = getattr(scipy.stats, dist_name)
+
+        # Gerando número aleatório de acordo com a distribuiução e os parametros definidos
+        r_N = dist.rvs(loc=loc, scale=scale, *arg, size=1)
         return(float(r_N))
+    
+  
 
 # Classe de criação da aplicação do NS3
 class MyApp(ns3.Application):
@@ -730,20 +845,14 @@ class MyApp(ns3.Application):
         global first_tcdf_size
         global first_trace_size
         global size_ns3
+        global reader
         parameter = "Size"
         
         # Condição de escolha do método de geração de variáveis aleatórias 
         # diretamente por uma distribuição de probabiidade
         if mt_RG == "PD":
-            # Selecionando distribuição de probabilidade
-            dist_name = 'uniform'
-            # Definindo parametros da distribuição
-            loc = 1000
-            scale = 1024
-            arg = []
-            
             # Chamando a função wgwnet_PD() e retornando valor gerado para uma variável auxiliar
-            aux_packet = wgwnet_PD(loc,scale, arg, dist_name, parameter)
+            aux_packet = wgwnet_PD(parameter)
             
             # Transformando a variávei auxiliar em um metadado de pacote
             packet = ns3.Packet(aux_packet)
@@ -755,9 +864,12 @@ class MyApp(ns3.Application):
         # baseado nos dados do trace
         if mt_RG == "Trace":
             
-            # Condição de chamada única da função read_trace()
             if first_trace_size == 0:
-                read_trace(parameter)
+                # Definindo o método de leitura do arquivo trace
+                if reader == "txt":
+                    read_txt(parameter)
+                if reader == "xml":
+                    read_xml(parameter)
             
             # Condição de escolha do método por distribuições teórica equivalentes aos dados do trace
             if tr_RG == "tcdf":
@@ -830,26 +942,24 @@ class MyApp(ns3.Application):
             global first_tcdf_time
             global first_trace_time
             global time_ns3
+            global reader
             parameter = "Time"
              # Condição de escolha do método de geração de variáveis aleatórias 
             # diretamente por uma distribuição de probabiidade
             if mt_RG == "PD":
-                # Selecionando distribuição de probabilidade
-                dist_name = 'uniform'
-                # Definindo parametros da distribuição
-                loc = 0.1
-                scale = 1
-                arg = []
                 # Chamando a função wgwnet_PD() e retornando valor gerado para uma variável auxiliar
-                aux_global_time = wgwnet_PD(loc, scale, arg, dist_name, parameter)
+                aux_global_time = wgwnet_PD(parameter)
                 
             # Condição de escolha do método de geração de variáveis aleatórias 
             # baseado nos dados do trace
             if mt_RG == "Trace":
 
-                # Condição de chamada única da função read_trace()
-                if first_trace_time == 0:
-                    read_trace(parameter)
+                # Definindo o método de leitura do arquivo trace
+                if first_trace_time == 0:  
+                    if reader == "txt":
+                        read_txt(parameter)
+                    if reader == "xml":
+                        read_xml(parameter)
                 
                 # Condição de escolha do método por distribuições teórica equivalentes aos dados do trace
                 if tr_RG == "tcdf":
@@ -933,18 +1043,6 @@ def print_stats(os, st):
     # for reason, drops in enumerate(st.bytesDropped):
         # print "Bytes dropped by reason %i: %i" % (reason, drops)
 
-# # Função de leitura dos arquivos .pcap através do termshark
-# def read_pcap():
-#     # Lendo arquivo .pcap
-#     # Tornando arquivo editável e legível
-#     os.system("chmod 777 myapp-py-0-0.pcap")
-#     # Atribuindo valor do tamanho do pacote em um arquivo .txt 
-#     os.system("termshark -r myapp-py-0-0.pcap -T fields -E separator=/t  -e ip.len > scratch/size_ns3.txt")
-#     # Atribuindo valor do tempo de envio cada pacote em um arquivo .txt
-#     os.system("termshark -r myapp-py-0-0.pcap -T fields -E separator=/t -e frame.time_delta_displayed > scratch/time_ns3.txt")
-#     # Tornando arquivos editáveis e legíveis
-#     os.system("chmod 777 scratch/size_ns3.txt")
-#     os.system("chmod 777 scratch/time_ns3.txt")
 
 # Função de comparação dos resultados obtidos com o NS3 com os dados dos traces
 # Esta função é utilizada apenas quando o método de geração variáveis aleatórias selecionado é por "Trace"
@@ -962,7 +1060,7 @@ def compare():
     # Métodos de comparação dos traces 
     # Opções: "qq_e_pp", "Graphical" ou "KS"
     compare = ""
-    # compare = "qq_e_pp"
+    compare = "qq_e_pp"
     if compare == "qq_e_pp":
         #
         # qq and pp plots
@@ -1080,7 +1178,7 @@ def compare():
         
         # Calculate cumulative distributions
         # Criando classes dos dados por percentis
-        S_bins = np.percentile(x,range(0,S_nbins))
+        S_bins = np.percentile(x,range(0,100))
 
         # Obtendo conunts e o número de classes de um histograma dos dados
         y_counts, S_bins = np.histogram(y, S_bins)
@@ -1189,7 +1287,7 @@ def compare():
         
         # Calculate cumulative distributions
         # Criando classes dos dados por percentis
-        T_bins = np.percentile(x,range(0,T_nbins))
+        T_bins = np.percentile(x,range(0,100))
 
         # Obtendo conunts e o número de classes de um histograma dos dados
         y_counts, T_bins = np.histogram(y, T_bins)
@@ -1235,7 +1333,7 @@ def compare():
         plt.tight_layout(pad=4)
         plt.show()
     
-    # compare = "Graphical"
+    compare = "Graphical"
     if compare == "Graphical":
 
         #
@@ -1347,6 +1445,7 @@ def compare():
 
         # Adicionando valores do trace
         Ft = t_size
+        # i=0
         # for i in range (len(Ft)):
         #     Ft[i] = Ft[i]/np.mean(Ft)
         
@@ -1387,8 +1486,8 @@ def compare():
         t_Fe = np.array(t_Fe)
         
         # Plotando resultados do teste KS
-        plt.plot(t_Fe, Fe, 'o', label='Real Trace')
-        plt.plot(Ft, Fe, 'o', label='Syntatic Trace')
+        plt.plot(Ft, Fe, 'o', label='Teorical Distribution')
+        plt.plot(t_Fe, Fe, 'o', label='Empirical Distribution')
         
         # Definindo titulo
         plt.title("KS test of Real Trace and Syntatic Trace" + ' ('+parameter+')')
@@ -1440,36 +1539,161 @@ def compare():
         t_Fe = np.array(t_Fe)
         
         # Plotando resultados do teste KS
-        plt.plot(t_Fe, Fe, 'o', label='Real Trace')
-        plt.plot(Ft, Fe, 'o', label='Syntatic Trace')
-        
+        # plt.plot(t_Fe, Fe, 'o', label='Real Trace')
+        # plt.plot(Ft, Fe, 'o', label='Syntatic Trace')
+
+        plt.plot(Ft, Fe, 'o', label='Teorical Distribution')
+        plt.plot(t_Fe, Fe, 'o', label='Empirical Distribution')
         # Definindo titulo
         plt.title("KS test of Real Trace and Syntatic Trace" + ' ('+parameter+')')
         plt.legend()
         plt.show() 
 
 # Função principal do código
+def kstest():
+    y = [142.773, 146.217, 147.676, 147.740, 149.016, 149.105, 150.476, 151.284, 151.461, 151.763, 151.932, 154.519, 154.632, 154.789, 155.008, 155.325, 155.402, 155.506, 155.545, 155.561, 155.581, 155.584, 155.701, 156.115, 156.340, 156.851, 156.879, 157.044, 157.404, 157.435, 157.573, 157.599, 157.688, 157.717, 157.858, 158.033, 158.154, 158.387, 158.475, 159.068, 159.215, 159.234, 159.366, 159.499, 159.576, 159.601, 159.767, 159.824, 159.978, 160.036, 160.289, 160.289, 160.327, 160.430, 160.496, 160.519, 160.719, 160.745, 160.942, 161.341, 161.438, 161.683, 161.767, 161.865, 162.064, 162.289, 162.302, 162.711, 162.752, 162.855, 162.866, 162.884, 162.918, 162.947, 163.136, 164.080, 164.138, 164.479, 164.524, 164.566, 164.850, 164.965, 165.000, 165.292, 165.397, 165.408, 165.538, 165.997, 166.311, 166.327, 166.367, 166.671, 167.214, 167.690, 168.178, 170.181, 170.633, 171.434, 173.424, 179.891]
+    # Set up distribution
+    size = len(y)
+    distribution = 'norm'
+    dist = getattr(scipy.stats, distribution)
+    param = dist.fit(y)
+
+  
+
+    #
+    # KS TEST
+    #
+    # Criando percentil
+    percentile = np.linspace(0,100,len(y))
+    percentile_cut = np.percentile(y, percentile)
+    
+    # Criando CDF da teórica
+    Ft = dist.cdf(percentile_cut, *param[:-2], loc=param[-2], scale=param[-1])
+    
+    
+    # Criando CDF Inversa 
+    Ft_ = dist.ppf(percentile_cut, *param[:-2], loc=param[-2], scale=param[-1])
+    
+    # Adicionando dados do trace
+    t_Fe = y
+
+    # Ordenando dados
+    t_Fe.sort()
+    Ft.sort()
+    Ft_.sort()
+
+    # Criando listas para armazenar as ECDFs
+    Fe = []
+    Fe_ = []
+
+    # Criando ECDFs
+    for i in range(len(y)):
+        # ecdf i-1/n
+        Fe.append((i-1)/len(y))
+        # ecdf i/n
+        Fe_.append(i/len(y))
+
+    # Transformando listas em np.arrays()
+    Fe = np.array(Fe)
+    Fe_ = np.array(Fe_)
+    Ft = np.array(Ft)
+    Ft_ = np.array(Ft_)
+    
+    # Inicio cálculo de rejeição
+    #
+    # Ft(t)-FE-(i),FE+(i)-Ft(t)
+    Ft_Fe_ = np.subtract(Ft, Fe_)
+    Fe_Ft = np.subtract(Fe, Ft)
+    
+    # Max(Ft(t)-FE-(i),FE+(i)-Ft(t))
+    Dobs_max = np.maximum(Ft_Fe_, Fe_Ft)
+    
+    # Dobs= Max(Max (Ft(t)-FE-(i),FE+(i)-Ft(t)))
+    Dobs = np.max(Dobs_max)
+    #
+    # Fim cálculo de rejeição
+
+    # Definir intervalo de confiança
+    # IC = 99.90 -> alpha = 0.10
+    # IC = 99.95 -> alpha = 0.05
+    # IC = 99.975 -> alpha = 0.025
+    # IC = 99.99 -> alpha = 0.01
+    # IC = 99.995 -> alpha = 0.005
+    # IC = 99.999 -> alpha = 0.001
+    IC = 99.95        
+    # Condição para definir o D_critico de acordo com o tamanho dos dados
+    if size > 35:
+        if IC == 99.90:
+            D_critico = 1.22/np.sqrt(len(y))
+        
+        if IC == 99.95:
+            D_critico = 1.36/np.sqrt(len(y))
+        
+        if IC == 99.975:
+            D_critico = 1.48/np.sqrt(len(y))
+        
+        if IC == 99.99:
+            D_critico = 1.63/np.sqrt(len(y))
+        
+        if IC == 99.995:
+            D_critico = 1.73/np.sqrt(len(y))
+        if IC == 99.999:
+            D_critico = 1.95/np.sqrt(len(y))
+
+        # Condição para aceitar a hipótese nula do teste KS
+        if Dobs > D_critico:
+            rejects = "Reject the Null Hypothesis"
+        else:
+            rejects = "Fails to Reject the Null Hypothesis"
+
+    # Imprimindo resultados do KS Test
+    print("KS TEST:")
+    print("Confidence degree: ", IC,"%")
+    print(rejects, " of ", distribution)
+    print("D observed: ", Dobs)
+    print("D critical: ", D_critico)
+    print(" ")
+
+    # Plotando resultados do teste KS
+    plt.plot(t_Fe, Ft, 'o', label='Teorical Distribution')
+    plt.plot(t_Fe, Fe, 'o', label='Empirical Distribution')
+    
+    
+    # plt.plot(t_Fe, Fe, 'o', label='Real Trace')
+    # plt.plot(Ft, Fe, 'o', label='Syntatic Trace')
+    # Definindo titulo
+    plt.title("KS Test of Real Trace with " + distribution + " Distribution (" + parameter + ")")
+    plt.legend()
+    plt.show() 
+
 def main(argv):
-    global tr_reader
+    kstest()
+    global reader
+    global mt_RG
     # Função para leitura de arquivos .pcap
     # if tr_reader == False:
     #     read_pcap()
-    
-    # Obtendo informações por linha de comando
-    cmd = ns.core.CommandLine ()
-    cmd.nPackets = 0
-    cmd.timeStopSimulation = 10
-    cmd.AddValue ("nPackets", "Número de pacotes enviados")
-    cmd.AddValue ("timeStopSimulation", "Tempo final da simulação")
-    cmd.Parse (sys.argv)
-    # Definindo a quantidade de pacotes
-    nPackets = int (cmd.nPackets)
-    # Definindo o tempo de parada da simulação
-    timeStopSimulation = float (cmd.timeStopSimulation)
-
-    # packetSize = 1040
-    # nPackets = 500
-    # dataRate = "1Mbps"
+    if (mt_RG == "Trace"):
+        # Obtendo informações por linha de comando
+        cmd = ns.core.CommandLine ()
+        cmd.nPackets = 0
+        cmd.timeStopSimulation = 10
+        cmd.app_protocol = "0"
+        cmd.AddValue ("nPackets", "Número de pacotes enviados")
+        cmd.AddValue ("timeStopSimulation", "Tempo final da simulação")
+        cmd.AddValue ("app_protocol", "Protocolo da aplicação")
+        cmd.Parse (sys.argv)
+        # Definindo a quantidade de pacotes
+        nPackets = int (cmd.nPackets)
+        # Definindo o tempo de parada da simulação
+        timeStopSimulation = float (cmd.timeStopSimulation)
+        # Definindo o protocolo da aplicação
+        app_protocol = cmd.app_protocol
+        
+    if (mt_RG=="PD"):    
+        nPackets = 500
+        timeStopSimulation = 100
+        app_protocol = "tcp" # ou "udp"
 
     # Habilita todas as notificações no NS3
     # ns3.LogComponentEnableAll(ns3.LOG_INFO)
@@ -1504,51 +1728,52 @@ def main(argv):
     # Instalando taxa de erro no nó 1
     devices.Get(1).SetAttribute("ReceiveErrorModel", ns3.PointerValue(em))
 
-    # # Application
-    # sinkPort = 8080
-    # # 节点n1，Serve Application
-    # packetSinkHelper = ns3.PacketSinkHelper("ns3::TcpSocketFactory", ns3.InetSocketAddress(ns3.Ipv4Address.GetAny(), sinkPort))
-    # sinkApps = packetSinkHelper.Install(nodes.Get(1))
-    # sinkApps.Start(ns3.Seconds(0.0))
-    # sinkApps.Stop(ns3.Seconds(timeStopSimulation))
-    # # 节点n0，Client Application
-    # sinkAddress = ns3.Address(ns3.InetSocketAddress(interfaces.GetAddress(1), sinkPort))
-    # ns3TcpSocket = ns3.Socket.CreateSocket(nodes.Get(0), ns3.TcpSocketFactory.GetTypeId())
-    # app = MyApp()
-    # # def Setup(self, socket, address, packetSize, nPackets, dataRate):
-    # # app.Setup(ns3TcpSocket, sinkAddress, packetSize, nPackets, ns3.DataRate(dataRate))
-    # app.Setup(ns3TcpSocket, sinkAddress, nPackets)
-    # nodes.Get(0).AddApplication(app)
-    # app.SetStartTime(ns3.Seconds(0.0))
-    # app.SetStopTime(ns3.Seconds(timeStopSimulation))
+    if (app_protocol == "tcp"):
+        # Application
+        sinkPort = 8080
+        # 节点n1，Serve Application
+        packetSinkHelper = ns3.PacketSinkHelper("ns3::TcpSocketFactory", ns3.InetSocketAddress(ns3.Ipv4Address.GetAny(), sinkPort))
+        sinkApps = packetSinkHelper.Install(nodes.Get(1))
+        sinkApps.Start(ns3.Seconds(0.0))
+        sinkApps.Stop(ns3.Seconds(timeStopSimulation))
+        # 节点n0，Client Application
+        sinkAddress = ns3.Address(ns3.InetSocketAddress(interfaces.GetAddress(1), sinkPort))
+        ns3TcpSocket = ns3.Socket.CreateSocket(nodes.Get(0), ns3.TcpSocketFactory.GetTypeId())
+        app = MyApp()
+        # def Setup(self, socket, address, packetSize, nPackets, dataRate):
+        # app.Setup(ns3TcpSocket, sinkAddress, packetSize, nPackets, ns3.DataRate(dataRate))
+        app.Setup(ns3TcpSocket, sinkAddress, nPackets)
+        nodes.Get(0).AddApplication(app)
+        app.SetStartTime(ns3.Seconds(0.0))
+        app.SetStopTime(ns3.Seconds(timeStopSimulation))
 
-    # ns3.Simulator.Schedule(ns3.Seconds(1), CwndChange, app)
+        ns3.Simulator.Schedule(ns3.Seconds(1), CwndChange, app)
 
+    if (app_protocol == "udp"):
+        # Application UDP
+        sinkPort = 8080
+        # Aplicação do servidor
+        packetSinkHelper = ns3.PacketSinkHelper("ns3::UdpSocketFactory", ns3.InetSocketAddress(ns3.Ipv4Address.GetAny(), sinkPort))
+        sinkApps = packetSinkHelper.Install(nodes.Get(1))
+        sinkApps.Start(ns3.Seconds(0.0))
+        sinkApps.Stop(ns3.Seconds(timeStopSimulation))
+        # Aplicação do cliente
+        sinkAddress = ns3.Address(ns3.InetSocketAddress(interfaces.GetAddress(1), sinkPort))
+        ns3UdpSocket = ns3.Socket.CreateSocket(nodes.Get(0), ns3.UdpSocketFactory.GetTypeId())
+        # Definindo aplicação na classe Myapp
+        app = MyApp()
+        
+        # Chamando a função setup para configurar a aplicação
+        # def Setup(self, socket, address, packetSize, nPackets, dataRate):
+        app.Setup(ns3UdpSocket, sinkAddress, nPackets)
+        # Configurando app no nó 0
+        nodes.Get(0).AddApplication(app)
+        # Inicio da aplicação
+        app.SetStartTime(ns3.Seconds(0.0))
+        # Término da aplicação
+        app.SetStopTime(ns3.Seconds(timeStopSimulation))
 
-    # Application UDP
-    sinkPort = 8080
-    # Aplicação do servidor
-    packetSinkHelper = ns3.PacketSinkHelper("ns3::UdpSocketFactory", ns3.InetSocketAddress(ns3.Ipv4Address.GetAny(), sinkPort))
-    sinkApps = packetSinkHelper.Install(nodes.Get(1))
-    sinkApps.Start(ns3.Seconds(0.0))
-    sinkApps.Stop(ns3.Seconds(timeStopSimulation))
-    # Aplicação do cliente
-    sinkAddress = ns3.Address(ns3.InetSocketAddress(interfaces.GetAddress(1), sinkPort))
-    ns3UdpSocket = ns3.Socket.CreateSocket(nodes.Get(0), ns3.UdpSocketFactory.GetTypeId())
-    # Definindo aplicação na classe Myapp
-    app = MyApp()
-    
-    # Chamando a função setup para configurar a aplicação
-    # def Setup(self, socket, address, packetSize, nPackets, dataRate):
-    app.Setup(ns3UdpSocket, sinkAddress, nPackets)
-    # Configurando app no nó 0
-    nodes.Get(0).AddApplication(app)
-    # Inicio da aplicação
-    app.SetStartTime(ns3.Seconds(0.0))
-    # Término da aplicação
-    app.SetStopTime(ns3.Seconds(timeStopSimulation))
-
-    # ns3.Simulator.Schedule(ns3.Seconds(3), IncRate, app, ns3.DataRate(dataRate))
+        # ns3.Simulator.Schedule(ns3.Seconds(3), IncRate, app, ns3.DataRate(dataRate))
 
     # Inicializando Flowmonitor
     flowmon_helper = ns3.FlowMonitorHelper()
@@ -1588,7 +1813,7 @@ def main(argv):
         print_stats(sys.stdout, flow_stats)
     
     
-    global mt_RG
+    
 
     if mt_RG == "Trace":
         compare()
